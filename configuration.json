@@ -1,3 +1,4 @@
 ﻿{
-    "currentMinecraftVersion":  "1.21.92.1"
+    "currentMinecraftVersion":  "1.21.92.1",
+    "serverRoot": "./servers"
 }
