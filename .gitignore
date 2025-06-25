@@ -1,0 +1,4 @@
+.idea
+/logs/*
+servers/*
+!servers/server directories go here.txt

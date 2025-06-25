@@ -15,8 +15,28 @@ function Get-ValidServerRoots
 {
     $requiredFiles = @("bedrock_server.exe", "permissions.json", "allowlist.json", "server.properties")
     $validServers = @()
-    $serverRoots = Get-ChildItem -Path $PSScriptRoot -Directory | Select-Object -ExpandProperty FullName
 
+    $configPath = "$PSScriptRoot\configuration.json"
+    if (!(Test-Path $configPath)) {
+        Write-Log "ERROR: configuration.json not found."
+        exit 1
+    }
+
+    try {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $serverRootPath = $config.serverRoot
+        if (-not $serverRootPath) {
+            $serverRootPath = ".\servers"
+        }
+        $serverRootPath = Resolve-Path -Path $serverRootPath
+    } catch {
+        Write-Log "ERROR: Failed to read or parse configuration.json: $_"
+        exit 1
+    }
+
+    Write-Log "Using serverRoot path: $serverRootPath"
+
+    $serverRoots = Get-ChildItem -Path $serverRootPath -Directory | Select-Object -ExpandProperty FullName
     Write-Log "Searching for Server Roots by searching for existence of files: $( $requiredFiles -join ', ' )"
 
     foreach ($serverRoot in $serverRoots)
@@ -42,6 +62,7 @@ function Get-ValidServerRoots
 
     return $validServers
 }
+
 
 #=== UPDATE HISTORY ===#
 function Write-UpdateHistory
@@ -108,52 +129,63 @@ function Get-ServerZip
 {
     [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls"
 
-    $webRequestParams = @{
-        UseBasicParsing = $true
-        Uri = 'https://www.minecraft.net/en-us/download/server/bedrock'
-        TimeoutSec = 10
-        Headers = @{
-            "accept" = "*/*"
-            "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36"
-        }
-    }
-
-    try
-    {
-        $page = Invoke-WebRequest @webRequestParams
-        $serverLink = $page.Links | Where-Object { $_.href -like "https://www.minecraft.net/bedrockdedicatedserver/bin-win/bedrock-server*" } | Select-Object -First 1
-        $downloadUrl = $serverLink.href
-        $filename = $downloadUrl.Replace("https://www.minecraft.net/bedrockdedicatedserver/bin-win/", "")
-    }
-    catch
-    {
-        Write-Log "ERROR: Failed to fetch Minecraft Bedrock server page."
+    $configPath = ".\configuration.json"
+    if (!(Test-Path $configPath)) {
+        Write-Log "ERROR: configuration.json not found."
         exit 1
     }
 
-    if ($filename -match "bedrock-server-([0-9\.]+)\.zip")
-    {
-        $version = $matches[1]
-    }
-    else
-    {
-        $version = "unknown"
+    try {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $version = $config.currentMinecraftVersion
+        if (-not $version) {
+            throw "Missing 'currentMinecraftVersion' in config"
+        }
+        Write-Log "Latest version in configuration: $version"
+    } catch {
+        Write-Log "ERROR: Failed to read or parse configuration.json: $_"
     }
 
+    $latestVersion = $null
+    try {
+        $apiUrl = 'https://net-secondary.web.minecraft-services.net/api/v1.0/download/links'
+        Write-Log "Attempting to fetch version from api url $apiUrl"
+        $apiResponse = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -TimeoutSec 10
+
+        $bedrockLink = $apiResponse.result.links | Where-Object { $_.downloadType -eq 'serverBedrockWindows' } | Select-Object -First 1
+        if ($bedrockLink -and $bedrockLink.downloadUrl -match "bedrock-server-([0-9\.]+)\.zip") {
+            $latestVersion = $matches[1]
+            if ($latestVersion -ne $version) {
+                Write-Log "Newer version detected: $latestVersion (was $version). Updating configuration.json..."
+
+                $newJson = @{ currentMinecraftVersion = $latestVersion } | ConvertTo-Json -Depth 2
+                Set-Content -Path $configPath -Value $newJson -Encoding UTF8
+
+                $version = $latestVersion
+            }
+        }
+    } catch {
+        Write-Log "WARNING: Could not fetch latest version from API. Using configured version $version."
+    }
+
+    $filename = "bedrock-server-$version.zip"
+    $downloadUrl = "https://www.minecraft.net/bedrockdedicatedserver/bin-win/$filename"
     $tempDir = "$env:TEMP\MinecraftBedrockUpdate"
     $zipPath = "$tempDir\$filename"
-    if (!(Test-Path $tempDir))
-    {
+
+    if (!(Test-Path $tempDir)) {
         New-Item -ItemType Directory -Path $tempDir | Out-Null
     }
 
-    if (!(Test-Path $zipPath))
-    {
-        Write-Log "Downloading: $filename"
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath
-    }
-    else
-    {
+    if (!(Test-Path $zipPath)) {
+        Write-Log "Downloading: $filename to: $zipPath"
+        try {
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath
+        } catch {
+            Write-Log "ERROR: Failed to download ${filename}: $_"
+            exit 1
+        }
+    } else {
         Write-Log "Zip already downloaded: $filename"
     }
 
@@ -278,8 +310,8 @@ function Update-Server
 }
 
 #=== CONFIGURATION ===#
-$scriptLogFile = "$PSScriptRoot\MinecraftScriptLog.log"
-$updateHistoryFile = "$PSScriptRoot\MinecraftUpdateHistory.json"
+$scriptLogFile = "$PSScriptRoot\logs\MinecraftScriptLog.log"
+$updateHistoryFile = "$PSScriptRoot\logs\MinecraftUpdateHistory.json"
 
 $serverRoots = Get-ValidServerRoots
 $download = Get-ServerZip

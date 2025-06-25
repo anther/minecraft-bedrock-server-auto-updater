@@ -1,0 +1,9 @@
+Example:
+
+/survival world
+/creative place
+/hard
+
+
+the script checks for the existence of
+"bedrock_server.exe", "permissions.json", "allowlist.json", "server.properties" to validate that it is a server location!
