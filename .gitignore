@@ -2,3 +2,6 @@
 /logs/*
 servers/*
 !servers/server directories go here.txt
+TheServers
+Server Backups
+Server Base Files
