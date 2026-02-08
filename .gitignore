@@ -6,3 +6,6 @@ servers/*
 TheServers
 Server Backups
 Server Base Files
+
+# Auto-generated configuration (create from configuration.json.example)
+configuration.json
