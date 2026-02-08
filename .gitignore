@@ -1,4 +1,5 @@
 .idea
+.claude
 /logs/*
 servers/*
 !servers/server directories go here.txt
