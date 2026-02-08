@@ -23,6 +23,16 @@ public class MinecraftServer
     public bool IsRunning { get; set; }
     public int? ProcessId { get; set; }
 
+    // Player tracking properties (dynamic state, updated via polling)
+    public int PlayerCount { get; set; }
+    public List<string> PlayerNames { get; set; } = new();
+    public DateTime? LastPlayerQueryTime { get; set; }
+
+    /// <summary>
+    /// Player count display string (e.g., "3/10")
+    /// </summary>
+    public string PlayerCountDisplay => $"{PlayerCount}/{Properties.MaxPlayers}";
+
     private MinecraftServer(string rootPath)
     {
         RootPath = rootPath;

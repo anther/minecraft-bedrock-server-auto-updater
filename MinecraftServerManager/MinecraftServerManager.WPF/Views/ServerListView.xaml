@@ -47,14 +47,34 @@
                   AlternatingRowBackground="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
 
             <DataGrid.Columns>
-                <!-- Status Indicator -->
+                <!-- Status Indicator with Player Names Tooltip -->
                 <DataGridTemplateColumn Header="Status" Width="60">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Ellipse Width="12" Height="12"
                                      Fill="{Binding StatusColor}"
-                                     ToolTip="{Binding IsRunning, StringFormat='Running: {0}'}"
-                                     HorizontalAlignment="Center"/>
+                                     HorizontalAlignment="Center">
+                                <Ellipse.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding IsRunning, StringFormat='Running: {0}'}"
+                                                       FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding PlayerCountDisplay, StringFormat='Players: {0}'}"
+                                                       Margin="0,5,0,0"
+                                                       Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}"/>
+                                            <ItemsControl ItemsSource="{Binding PlayerNames}"
+                                                          Margin="0,5,0,0"
+                                                          Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding}" Margin="5,2,0,0"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </ToolTip>
+                                </Ellipse.ToolTip>
+                            </Ellipse>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -64,6 +84,11 @@
 
                 <!-- Version -->
                 <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120"/>
+
+                <!-- Player Count (3/10 format) -->
+                <DataGridTextColumn Header="Players"
+                                    Binding="{Binding PlayerCountDisplay}"
+                                    Width="80"/>
 
                 <!-- Server Name from Properties -->
                 <DataGridTextColumn Header="Display Name" Binding="{Binding ServerName}" Width="*" MinWidth="150"/>

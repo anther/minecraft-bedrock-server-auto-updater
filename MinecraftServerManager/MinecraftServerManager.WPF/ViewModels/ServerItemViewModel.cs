@@ -73,6 +73,26 @@ public partial class ServerItemViewModel : ViewModelBase
     public string RootPath => _server.RootPath;
 
     /// <summary>
+    /// Current number of players online
+    /// </summary>
+    public int PlayerCount => _server.PlayerCount;
+
+    /// <summary>
+    /// List of player names currently online
+    /// </summary>
+    public List<string> PlayerNames => _server.PlayerNames;
+
+    /// <summary>
+    /// Player count display string (e.g., "3/10")
+    /// </summary>
+    public string PlayerCountDisplay => _server.PlayerCountDisplay;
+
+    /// <summary>
+    /// Last time player data was queried
+    /// </summary>
+    public DateTime? LastPlayerQueryTime => _server.LastPlayerQueryTime;
+
+    /// <summary>
     /// Status color indicator (Green for running, Red for stopped)
     /// </summary>
     public Brush StatusColor => IsRunning ? Brushes.LimeGreen : Brushes.Crimson;
@@ -85,6 +105,10 @@ public partial class ServerItemViewModel : ViewModelBase
         await _server.UpdateRunningStatusAsync();
         OnPropertyChanged(nameof(IsRunning));
         OnPropertyChanged(nameof(StatusColor));
+        OnPropertyChanged(nameof(PlayerCount));
+        OnPropertyChanged(nameof(PlayerCountDisplay));
+        OnPropertyChanged(nameof(PlayerNames));
+        OnPropertyChanged(nameof(LastPlayerQueryTime));
     }
 
     /// <summary>

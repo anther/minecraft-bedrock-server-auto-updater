@@ -74,7 +74,7 @@
             </GroupBox>
 
             <!-- Gameplay Settings -->
-            <GroupBox Header="Gameplay Settings" Margin="0,0,0,20" Padding="15">
+            <GroupBox Header="Gameplay Settings" Margin="0,0,0,15" Padding="15">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150"/>
@@ -94,6 +94,49 @@
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Max Players:" Margin="0,0,0,0"/>
                     <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MaxPlayers}" FontWeight="Bold" Margin="0,0,0,0"/>
+                </Grid>
+            </GroupBox>
+
+            <!-- Player Information -->
+            <GroupBox Header="Player Information" Margin="0,0,0,20" Padding="15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Current Players -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Current Players:" Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               Text="{Binding ServerItem.PlayerCountDisplay}"
+                               FontWeight="Bold"
+                               Margin="0,0,0,10"/>
+
+                    <!-- Last Query Time -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Last Query:" Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1"
+                               Text="{Binding ServerItem.LastPlayerQueryTime, StringFormat='g'}"
+                               Margin="0,0,0,10"/>
+
+                    <!-- Player Names -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                               Text="Players Online:"
+                               Margin="0,0,0,0"
+                               VerticalAlignment="Top"/>
+                    <ItemsControl Grid.Row="2" Grid.Column="1"
+                                  ItemsSource="{Binding ServerItem.PlayerNames}"
+                                  Margin="0,0,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Margin="0,2,0,0"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </Grid>
             </GroupBox>
 

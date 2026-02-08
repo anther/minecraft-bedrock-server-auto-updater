@@ -32,6 +32,7 @@ public partial class App : Application
         services.AddSingleton<VersionCheckerService>();
         services.AddSingleton<DownloadService>();
         services.AddSingleton<UpdateService>();
+        services.AddSingleton<QueryService>();
         services.AddSingleton<ServerManager>();
 
         // Register WPF Services

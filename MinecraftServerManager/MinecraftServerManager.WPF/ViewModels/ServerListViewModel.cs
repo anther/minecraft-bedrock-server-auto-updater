@@ -12,16 +12,18 @@ public partial class ServerListViewModel : ViewModelBase
 {
     private readonly ServerManager _serverManager;
     private readonly LoggingService _logger;
+    private readonly QueryService _queryService;
     private readonly DispatcherTimer _statusPollingTimer;
 
     private ObservableCollection<ServerItemViewModel> _servers = new();
     private ServerItemViewModel? _selectedServer;
     private bool _isLoading;
 
-    public ServerListViewModel(ServerManager serverManager, LoggingService logger)
+    public ServerListViewModel(ServerManager serverManager, LoggingService logger, QueryService queryService)
     {
         _serverManager = serverManager;
         _logger = logger;
+        _queryService = queryService;
 
         // Setup status polling timer (5 seconds)
         _statusPollingTimer = new DispatcherTimer
@@ -170,7 +172,7 @@ public partial class ServerListViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Polls server status every 5 seconds
+    /// Polls server status and player count every 5 seconds
     /// </summary>
     private async Task PollServerStatusAsync()
     {
@@ -181,12 +183,20 @@ public partial class ServerListViewModel : ViewModelBase
         {
             foreach (var serverVM in Servers)
             {
+                // Query player count (only if running)
+                if (serverVM.IsRunning)
+                {
+                    await _queryService.QueryServerAsync(serverVM.Server);
+                }
+
+                // Refresh status (this will trigger property change notifications)
                 await serverVM.RefreshStatusAsync();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail for polling errors
+            // Silent failure for polling (non-critical)
+            _logger.LogWarning($"Polling error: {ex.Message}");
         }
     }
 }
