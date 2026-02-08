@@ -24,8 +24,10 @@ public partial class App : Application
 
         // Register Core Services
         var logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+        var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configuration.json");
+
         services.AddSingleton(new LoggingService(logDirectory));
-        services.AddSingleton<ConfigurationService>();
+        services.AddSingleton(sp => new ConfigurationService(configPath, sp.GetRequiredService<LoggingService>()));
         services.AddSingleton<ServerDiscoveryService>();
         services.AddSingleton<VersionCheckerService>();
         services.AddSingleton<DownloadService>();
