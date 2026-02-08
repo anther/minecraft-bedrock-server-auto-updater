@@ -39,6 +39,7 @@ public class QueryService
             // Get query port from server.properties (defaults to server-port)
             var queryPort = GetQueryPort(server);
             var endpoint = new IPEndPoint(IPAddress.Loopback, queryPort);
+            _logger.Log($"Querying {server.Name} at {endpoint.Address}:{endpoint.Port}");
 
             using var client = new UdpClient();
             client.Client.ReceiveTimeout = QueryTimeoutMs;
@@ -51,6 +52,7 @@ public class QueryService
             var challengeToken = await GetChallengeTokenAsync(client, endpoint, sessionId);
             if (challengeToken == 0)
             {
+                _logger.LogWarning($"{server.Name}: Failed to get challenge token - query may not be enabled or server not responding");
                 return new PlayerQueryResult { Error = "Failed to get challenge token" };
             }
 
@@ -126,13 +128,21 @@ public class QueryService
             var tokenStr = Encoding.ASCII.GetString(data, 5, data.Length - 6); // Skip type+sessionId, remove null terminator
             if (int.TryParse(tokenStr, out var token))
             {
+                _logger.Log($"Received challenge token: {token}");
                 return token;
             }
 
+            _logger.LogWarning("Failed to parse challenge token from response");
             return 0;
         }
-        catch
+        catch (SocketException ex)
         {
+            _logger.LogWarning($"Socket timeout/error getting challenge token: {ex.Message}");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"Unexpected error getting challenge token: {ex.Message}");
             return 0;
         }
     }
@@ -168,8 +178,14 @@ public class QueryService
             // Parse response
             return ParseFullStatResponse(data);
         }
+        catch (SocketException ex)
+        {
+            _logger.LogWarning($"Socket error getting full stats: {ex.Message}");
+            return new PlayerQueryResult { Error = $"Socket error: {ex.Message}" };
+        }
         catch (Exception ex)
         {
+            _logger.LogWarning($"Error getting full stats: {ex.Message}");
             return new PlayerQueryResult { Error = $"Stat query failed: {ex.Message}" };
         }
     }
