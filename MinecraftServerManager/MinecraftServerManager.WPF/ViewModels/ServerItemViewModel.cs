@@ -40,7 +40,7 @@ public partial class ServerItemViewModel : ViewModelBase
     /// <summary>
     /// Server name from server.properties
     /// </summary>
-    public string ServerName => _server.Properties.ServerName;
+    public string ServerName => _server.Properties.ServerName ?? "Unknown";
 
     /// <summary>
     /// Server port from server.properties
@@ -55,12 +55,12 @@ public partial class ServerItemViewModel : ViewModelBase
     /// <summary>
     /// Game mode (Survival, Creative, Adventure)
     /// </summary>
-    public string Gamemode => _server.Properties.Gamemode;
+    public string Gamemode => _server.Properties.Gamemode ?? "Unknown";
 
     /// <summary>
     /// Difficulty level
     /// </summary>
-    public string Difficulty => _server.Properties.Difficulty;
+    public string Difficulty => _server.Properties.Difficulty ?? "Unknown";
 
     /// <summary>
     /// Maximum number of players
