@@ -2,7 +2,7 @@
 
 A C# WPF GUI application for managing Minecraft Bedrock servers with automatic updates. This project is a complete rewrite of the PowerShell-based auto-updater.
 
-## Current Status: Phase 1 Complete (Core Business Logic)
+## Current Status: Phase 2 Complete (WPF GUI)
 
 ### What's Been Built
 
@@ -11,6 +11,15 @@ A C# WPF GUI application for managing Minecraft Bedrock servers with automatic u
 - Clean, testable service-based architecture
 - Full logging and history tracking
 - Ready for GUI integration
+
+**Phase 2: WPF GUI** ✅ COMPLETE
+- Full MVVM architecture with CommunityToolkit.Mvvm
+- Modern UI with ModernWpfUI styling
+- Complete dependency injection setup
+- All views and ViewModels implemented
+- **Status:** Built successfully - Ready for testing
+
+📋 **[See detailed testing instructions in WPF_IMPLEMENTATION_PROGRESS.md](WPF_IMPLEMENTATION_PROGRESS.md)**
 
 ### Project Structure
 
@@ -34,6 +43,33 @@ MinecraftServerManager/
 │       ├── ConfigurationService.cs       # Config management
 │       └── LoggingService.cs             # Logging
 │
+├── MinecraftServerManager.WPF/           # WPF GUI application
+│   ├── Views/                             # XAML views
+│   │   ├── MainWindow.xaml               # Main shell
+│   │   ├── ServerListView.xaml           # Server management
+│   │   ├── UpdateProgressView.xaml       # Update tracking
+│   │   ├── UpdateHistoryView.xaml        # History display
+│   │   ├── SettingsView.xaml             # Configuration
+│   │   └── ServerDetailsView.xaml        # Server details
+│   │
+│   ├── ViewModels/                        # MVVM ViewModels
+│   │   ├── MainWindowViewModel.cs        # Main orchestrator
+│   │   ├── ServerListViewModel.cs        # Server list
+│   │   ├── ServerItemViewModel.cs        # Individual server
+│   │   ├── UpdateProgressViewModel.cs    # Progress tracking
+│   │   ├── UpdateHistoryViewModel.cs     # History
+│   │   └── SettingsViewModel.cs          # Settings
+│   │
+│   ├── Services/                          # WPF-specific services
+│   │   ├── IDialogService.cs             # Dialog abstraction
+│   │   └── DialogService.cs              # MessageBox wrapper
+│   │
+│   └── Converters/                        # Value converters
+│       ├── BooleanToVisibilityConverter.cs
+│       ├── InverseBooleanConverter.cs
+│       └── ServerStatusToColorConverter.cs
+│
+├── WPF_IMPLEMENTATION_PROGRESS.md        # Testing guide
 └── MinecraftServerManager.sln            # Visual Studio solution
 ```
 
@@ -89,18 +125,37 @@ MinecraftServerManager/
 
 ## Getting Started
 
-### Step 1: Install .NET 8 SDK
+### Quick Start (Run the GUI)
 
-1. Download from https://dotnet.microsoft.com/download/dotnet/8.0
-2. Run the installer
-3. Restart your terminal/IDE
-4. Verify installation:
-   ```bash
-   dotnet --version
+```bash
+cd "C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager"
+dotnet run --project "MinecraftServerManager.WPF/MinecraftServerManager.WPF.csproj"
+```
+
+**First time users:** See [WPF_IMPLEMENTATION_PROGRESS.md](WPF_IMPLEMENTATION_PROGRESS.md) for complete testing guide.
+
+### Prerequisites
+
+1. **.NET 8 SDK**
+   - Download: https://dotnet.microsoft.com/download/dotnet/8.0
+   - Choose: SDK (not just Runtime)
+   - Verify: `dotnet --version` should output `8.0.xxx`
+
+2. **Valid configuration.json** in the working directory:
+   ```json
+   {
+     "ServerRoot": "C:\\Path\\To\\Servers",
+     "CurrentMinecraftVersion": "1.20.50.03"
+   }
    ```
-   Should output: `8.0.xxx`
 
-### Step 2: Build the Project
+3. **At least one Minecraft Bedrock server** in ServerRoot with:
+   - `bedrock_server.exe`
+   - `server.properties`
+   - `allowlist.json`
+   - `permissions.json`
+
+### Build the Project
 
 ```bash
 cd "C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager"
@@ -108,36 +163,46 @@ dotnet restore
 dotnet build
 ```
 
-### Step 3: Test Core Functionality (Optional)
+Should complete with 0 errors (warnings are OK).
 
-Create a simple console test app to verify the core logic works:
+## GUI Features
 
-```bash
-# Create console test project
-dotnet new console -n TestApp
-cd TestApp
-dotnet add reference ../MinecraftServerManager.Core/MinecraftServerManager.Core.csproj
-```
+The WPF GUI provides:
 
-Then edit `Program.cs` to test the services.
+### 🎯 Main Features
+- **Server Discovery & Management** - View all servers with real-time status (auto-updates every 5 seconds)
+- **One-Click Updates** - Check for updates and apply them with real-time progress tracking
+- **Individual Server Control** - Start/stop servers, view details, open folders
+- **Update History** - See all past updates with timestamps
+- **Settings Management** - Configure server root and view logs
 
-## What's Next: Phase 2 - WPF GUI
+### 🖥️ User Interface
+- **Modern Design** - ModernWpfUI styling for clean, modern appearance
+- **Navigation Sidebar** - Easy access to Servers, History, and Settings
+- **Real-time Status** - Color-coded indicators (🟢 running, 🔴 stopped)
+- **Progress Tracking** - Detailed logs and progress bar during updates
+- **Responsive UI** - Never freezes, all operations are async
 
-Once .NET 8 SDK is installed and the Core project builds successfully, we'll proceed to:
+### 🧪 Testing Status
+**See [WPF_IMPLEMENTATION_PROGRESS.md](WPF_IMPLEMENTATION_PROGRESS.md) for:**
+- Complete testing checklist (11 tests)
+- Step-by-step testing instructions
+- Known issues and troubleshooting
+- Success criteria
 
-### Phase 2 Tasks
-1. Create WPF application project
-2. Set up MVVM architecture with CommunityToolkit.MVVM
-3. Add MahApps.Metro for modern UI
-4. Create ViewModels (MainViewModel, ServerViewModel, etc.)
-5. Create Views (MainWindow.xaml, etc.)
-6. Wire up Core services to GUI
+## What's Next: Testing & Polish
 
-### Expected Timeline
-- Phase 2: WPF GUI - 2-3 weeks
-- Phase 3: Progress & Polish - 1 week
-- Phase 4: Task Scheduler - 1 week
-- Phase 5: Final Polish - 1 week
+### Immediate Next Steps
+1. ✅ Build successful - **COMPLETE**
+2. ⏳ Run application and execute testing checklist - **IN PROGRESS**
+3. ⏳ Fix any issues found during testing
+4. ⏳ Address known warnings (System.Text.Json vulnerability, nullable references)
+5. ⏳ Production deployment
+
+### Future Phases
+- Phase 3: Task Scheduler Integration - Automated updates
+- Phase 4: Advanced Features - Backup management, server groups
+- Phase 5: Final Polish - Documentation, installer
 
 ## Technical Details
 
