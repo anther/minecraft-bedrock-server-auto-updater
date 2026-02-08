@@ -47,7 +47,7 @@ Clone or download this repository to a location on your computer:
 # Example location
 cd C:\
 git clone <repository-url> "Minecraft Servers"
-cd "Minecraft Servers"
+cd "Minecraft Servers\minecraft-server-manager"
 ```
 
 Or download the ZIP file and extract it to your preferred location.
@@ -56,9 +56,10 @@ Or download the ZIP file and extract it to your preferred location.
 
 The updater uses a `configuration.json` file to track the Minecraft version and locate your servers.
 
-Copy the example configuration file:
+Navigate to the `minecraft-server-manager/` directory and copy the example configuration file:
 
 ```powershell
+cd minecraft-server-manager
 Copy-Item "configuration.json.example" "configuration.json"
 ```
 
@@ -66,43 +67,56 @@ The configuration file contains:
 ```json
 {
     "currentMinecraftVersion": "1.21.132.3",
-    "serverRoot": "./TheServers"
+    "serverRoot": "../TheServers"
 }
 ```
 
 **Fields explained:**
 - `currentMinecraftVersion` - The current Minecraft version. **This is auto-updated by the script**, but you can set it manually if needed
-- `serverRoot` - Path to the directory containing your server folders (default: `./TheServers`)
+- `serverRoot` - Path to the directory containing your server folders (default: `../TheServers` - one level up from minecraft-server-manager/)
 
 You typically don't need to edit this file manually - the script manages it automatically.
 
 ### Step 3: Understand the Directory Structure
 
-The updater tool distinguishes between **code files** (which you manage in git) and **server data** (which should not be tracked):
+The updater tool is organized to separate **application code** (in `minecraft-server-manager/`) from **server data** (in the parent/root directory):
 
-#### Code Files (Version Controlled)
-These are the updater tool files:
-- `server update.ps1` - Main update script
-- `MinecraftServer.ps1` - Server management class
-- `run.bat` - Execution wrapper
-- `configuration.json.example` - Configuration template
-- `README.md`, `SETUP.md`, `CONFIGURATION.md`, `TROUBLESHOOTING.md` - Documentation
+```
+Minecraft Servers/
+├── minecraft-server-manager/    # Application code (git tracked)
+│   ├── server update.ps1         # Main update script
+│   ├── MinecraftServer.ps1       # Server management class
+│   ├── run.bat                   # Execution wrapper
+│   ├── configuration.json        # Active config (gitignored)
+│   ├── configuration.json.example
+│   ├── logs/                     # Updater logs (gitignored)
+│   └── Documentation files
+├── TheServers/                   # Server data (not tracked)
+├── Server Backups/               # Manual backups (not tracked)
+└── Server Base Files/            # Archived versions (not tracked)
+```
 
-#### Server Data (Not Version Controlled)
-These directories contain your Minecraft servers and should be excluded from git:
-- `TheServers/` - Your actual server instances
-- `Server Backups/` - Manual backups (if you create them)
-- `logs/` - Updater execution logs
-- `configuration.json` - Auto-generated configuration (excluded from git)
+#### Application Code (minecraft-server-manager/)
+All updater tool files live in the `minecraft-server-manager/` subdirectory:
+- `server update.ps1`, `MinecraftServer.ps1`, `run.bat` - Core scripts
+- `configuration.json` - Auto-generated config (gitignored)
+- `logs/` - Updater execution logs (gitignored)
+- Documentation files
 
-The `.gitignore` file ensures server data isn't accidentally committed to version control.
+#### Server Data (Root Directory)
+Your actual Minecraft servers remain in the root/parent directory:
+- `../TheServers/` - Your actual server instances
+- `../Server Backups/` - Manual backups (if you create them)
+- `../Server Base Files/` - Archived server versions
+
+The `.gitignore` file ensures server data and auto-modified files aren't accidentally committed to version control.
 
 ### Step 4: Place Your Servers
 
-Move or copy your existing Minecraft Bedrock server folders into the `TheServers/` directory:
+Move or copy your existing Minecraft Bedrock server folders into the `TheServers/` directory (located in the parent/root directory, one level up from minecraft-server-manager/):
 
 ```
-TheServers/
+../TheServers/                    # In root directory
 ├── MyFirstServer/
 │   ├── bedrock_server.exe
 │   ├── server.properties
@@ -134,9 +148,10 @@ For details on configuring Minecraft servers, see the [official Bedrock server d
 
 ### Step 5: Test Manual Execution
 
-Before scheduling automatic updates, test the updater manually:
+Before scheduling automatic updates, test the updater manually (from the minecraft-server-manager/ directory):
 
 ```powershell
+cd minecraft-server-manager
 .\run.bat
 ```
 
@@ -197,10 +212,10 @@ Press `Win + R`, type `taskschd.msc`, and press Enter.
 4. **Actions Tab**:
    - Click **"New..."**
    - **Action**: "Start a program"
-   - **Program/script**: Browse to `run.bat` in your updater directory
-     - Example: `C:\Minecraft Servers\run.bat`
-   - **Start in**: Enter the updater directory path (without `run.bat`)
-     - Example: `C:\Minecraft Servers\`
+   - **Program/script**: Browse to `run.bat` in the minecraft-server-manager directory
+     - Example: `C:\Minecraft Servers\minecraft-server-manager\run.bat`
+   - **Start in**: Enter the minecraft-server-manager directory path (without `run.bat`)
+     - Example: `C:\Minecraft Servers\minecraft-server-manager\`
    - Click **OK**
 
 #### Set Conditions
@@ -284,9 +299,9 @@ Get-Content "logs\MinecraftUpdateHistory.json" | ConvertFrom-Json | Format-Table
 
 To add additional servers after initial setup:
 
-1. **Create server folder**:
+1. **Create server folder** (from minecraft-server-manager/ directory):
    ```powershell
-   New-Item -ItemType Directory -Path ".\TheServers\NewServerName"
+   New-Item -ItemType Directory -Path "..\TheServers\NewServerName"
    ```
 
 2. **Copy Minecraft Bedrock server files** to the new folder (bedrock_server.exe, server.properties, etc.)
@@ -298,6 +313,7 @@ To add additional servers after initial setup:
 
 4. **Run the updater**:
    ```powershell
+   cd minecraft-server-manager
    .\run.bat
    ```
 

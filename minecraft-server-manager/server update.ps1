@@ -129,7 +129,7 @@ function Get-ServerZip
 {
     [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls"
 
-    $configPath = ".\configuration.json"
+    $configPath = "$PSScriptRoot\configuration.json"
     if (!(Test-Path $configPath)) {
         Write-Log "ERROR: configuration.json not found."
         exit 1

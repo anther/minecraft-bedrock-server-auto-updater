@@ -18,13 +18,13 @@ This document provides technical reference information for the Minecraft Bedrock
 The main configuration file for the updater tool located at the project root.
 
 ### File Location
-`C:\Users\Janther\Downloads\Minecraft Servers\configuration.json`
+`C:\Users\Janther\Downloads\Minecraft Servers\minecraft-server-manager\configuration.json`
 
 ### Format
 ```json
 {
     "currentMinecraftVersion": "1.21.132.3",
-    "serverRoot": "./TheServers"
+    "serverRoot": "../TheServers"
 }
 ```
 
@@ -52,10 +52,10 @@ Generally not needed, but you can manually set this if:
 
 #### serverRoot
 - **Type**: String (path)
-- **Default**: `"./TheServers"`
+- **Default**: `"../TheServers"`
 - **Purpose**: Specifies the directory containing server instance folders
 - **Path Types**:
-  - **Relative**: `./TheServers`, `../MyServers`, `./servers`
+  - **Relative**: `../TheServers`, `../../MyServers`, `../servers`
   - **Absolute**: `C:\MinecraftServers`, `D:\Games\Minecraft\Servers`
 
 **Behavior**:
@@ -70,14 +70,17 @@ Generally not needed, but you can manually set this if:
 
 **Example Configurations**:
 ```json
-# Default - servers in TheServers subfolder
-{"serverRoot": "./TheServers"}
+# Default - servers in parent directory's TheServers folder
+{"serverRoot": "../TheServers"}
 
 # Absolute path
 {"serverRoot": "C:\\MinecraftServers"}
 
 # Different drive
 {"serverRoot": "D:\\Servers\\Minecraft"}
+
+# Custom relative path
+{"serverRoot": "../../OtherLocation\\Servers"}
 ```
 
 ### Version Control Note
@@ -94,35 +97,42 @@ Complete breakdown of the project structure with distinction between code and da
 
 ### Overview
 
+The project is organized to separate **application code** (in `minecraft-server-manager/`) from **server data** (in root directory):
+
 ```
-Minecraft Servers/
-├── server update.ps1          # Main update orchestration script
-├── MinecraftServer.ps1         # Server class definition
-├── run.bat                     # PowerShell execution wrapper
-├── configuration.json.example  # Configuration template (tracked in git)
-├── configuration.json          # Active configuration (auto-generated, gitignored)
-├── README.md                   # Project overview and navigation
-├── SETUP.md                    # Beginner-friendly setup guide
-├── CONFIGURATION.md            # This file - technical reference
-├── TROUBLESHOOTING.md          # Problem-solving guide
-├── LICENSE                     # MIT License
-├── .gitignore                  # Git exclusion patterns
+Minecraft Servers/                        # Root directory
 │
-├── logs/                       # Updater execution logs (gitignored)
-│   ├── MinecraftScriptLog.log  # Detailed execution log
-│   └── MinecraftUpdateHistory.json  # Version update history
+├── minecraft-server-manager/             # Application code (git tracked)
+│   ├── server update.ps1                 # Main update orchestration script
+│   ├── MinecraftServer.ps1               # Server class definition
+│   ├── run.bat                           # PowerShell execution wrapper
+│   ├── configuration.json.example        # Configuration template (tracked in git)
+│   ├── configuration.json                # Active configuration (auto-generated, gitignored)
+│   ├── README.md                         # Project overview and navigation
+│   ├── SETUP.md                          # Beginner-friendly setup guide
+│   ├── CONFIGURATION.md                  # This file - technical reference
+│   ├── TROUBLESHOOTING.md                # Problem-solving guide
+│   ├── LICENSE                           # MIT License
+│   ├── .gitignore                        # Git exclusion patterns
+│   │
+│   ├── logs/                             # Updater execution logs (gitignored)
+│   │   ├── MinecraftScriptLog.log        # Detailed execution log
+│   │   └── MinecraftUpdateHistory.json   # Version update history
+│   │
+│   ├── servers/                          # Placeholder directory
+│   │   └── server directories go here.txt
+│   │
+│   └── templates/                        # Helper documentation
+│       └── NEW-SERVER-SETUP.md
 │
-├── servers/                    # Placeholder directory (empty except marker file)
-│   └── server directories go here.txt
-│
-├── TheServers/                 # Actual server instances (gitignored)
+├── TheServers/                           # Server data (not tracked in git)
 │   ├── Earth/
 │   │   ├── bedrock_server.exe
 │   │   ├── server.properties
 │   │   ├── permissions.json
 │   │   ├── allowlist.json
-│   │   ├── currentVersion.json  # Per-server version tracking
-│   │   ├── BACKUP/              # Config backups before updates
+│   │   ├── currentVersion.json           # Per-server version tracking
+│   │   ├── BACKUP/                       # Config backups before updates
 │   │   ├── worlds/
 │   │   ├── behavior_packs/
 │   │   ├── resource_packs/
@@ -132,13 +142,16 @@ Minecraft Servers/
 │   ├── SledgerSurvival/
 │   └── SurvivalIsland/
 │
-└── Server Backups/             # Manual backups (gitignored)
-    └── ... (user-created backups)
+├── Server Backups/                       # Manual backups (not tracked)
+│   └── ... (user-created backups)
+│
+└── Server Base Files/                    # Archived versions (not tracked)
+    └── ... (archived server files)
 ```
 
-### Code Files (Version Controlled)
+### Application Code (minecraft-server-manager/)
 
-These files are tracked in git and form the updater tool:
+All updater tool code lives in the `minecraft-server-manager/` subdirectory. These files are tracked in git:
 
 | File | Purpose |
 |------|---------|
@@ -146,28 +159,31 @@ These files are tracked in git and form the updater tool:
 | `MinecraftServer.ps1` | PowerShell class definition for server object representation |
 | `run.bat` | Execution wrapper that bypasses PowerShell execution policy |
 | `configuration.json.example` | Template for configuration.json |
+| `logs/` | Updater execution logs and history (gitignored) |
+| `servers/` | Placeholder directory (gitignored) |
+| `templates/` | Helper documentation |
 | `README.md`, `SETUP.md`, `CONFIGURATION.md`, `TROUBLESHOOTING.md` | Documentation files |
 | `LICENSE` | MIT License file |
 | `.gitignore` | Defines what to exclude from version control |
 
-### Data Directories (Excluded from Git)
+### Server Data (Root Directory)
 
-These directories contain runtime data and should NOT be committed to version control:
+Server data remains in the root directory, separate from application code. NOT tracked in git:
 
-| Directory | Purpose | Gitignored |
-|-----------|---------|------------|
-| `TheServers/` | Active server instances with worlds and configurations | Yes |
-| `Server Backups/` | User-created manual backups | Yes |
-| `logs/` | Updater execution logs and history | Yes |
-| `configuration.json` | Active configuration (auto-modified) | Yes |
-| `servers/` | Placeholder directory (currently unused) | Yes |
+| Directory | Purpose | Location |
+|-----------|---------|----------|
+| `TheServers/` | Active server instances with worlds and configurations | `../TheServers/` (from code dir) |
+| `Server Backups/` | User-created manual backups | `../Server Backups/` (from code dir) |
+| `Server Base Files/` | Archived server versions | `../Server Base Files/` (from code dir) |
 
-### Why This Separation Matters
+### Why This Structure?
 
-1. **Clean version control**: Only code and templates are tracked, no user data
-2. **Prevents conflicts**: Auto-modified files don't create merge conflicts
-3. **Privacy**: Server worlds and player data stay local
-4. **Portability**: Code can be cloned to any system, data stays separate
+1. **Clear separation**: Application code in one directory, server data in another
+2. **Clean version control**: Only code and templates are tracked, no user data
+3. **Prevents conflicts**: Auto-modified config doesn't create merge conflicts
+4. **Privacy**: Server worlds and player data stay local
+5. **Portability**: Clone the manager, point it at any server directory
+6. **Easier updates**: Pull code changes without affecting server data
 
 ---
 

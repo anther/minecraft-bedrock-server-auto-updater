@@ -28,13 +28,16 @@ This is a PowerShell automation tool that keeps your Minecraft Bedrock servers a
 **For experienced users**:
 
 ```powershell
-# 1. Copy configuration template
+# 1. Navigate to the manager directory
+cd minecraft-server-manager
+
+# 2. Copy configuration template
 Copy-Item "configuration.json.example" "configuration.json"
 
-# 2. Place your Minecraft Bedrock servers in TheServers/ directory
+# 3. Place your Minecraft Bedrock servers in ../TheServers/ directory
 #    Each server folder must have: bedrock_server.exe, server.properties, permissions.json, allowlist.json
 
-# 3. Run the updater
+# 4. Run the updater
 .\run.bat
 ```
 
@@ -64,11 +67,28 @@ Copy-Item "configuration.json.example" "configuration.json"
 
 ## Project Structure
 
-This project separates **code files** (tracked in version control) from **server data** (excluded from git).
+This project separates **application code** (in `minecraft-server-manager/`) from **server data** (in root), making it easy to version control the tool while keeping your server data separate.
 
-### Code Files (Version Controlled)
+```
+Minecraft Servers/
+├── minecraft-server-manager/    # Application code (tracked in git)
+│   ├── server update.ps1         # Main orchestration script
+│   ├── MinecraftServer.ps1       # PowerShell server class
+│   ├── run.bat                   # Execution wrapper
+│   ├── configuration.json        # Active config (auto-modified, gitignored)
+│   ├── configuration.json.example # Config template
+│   ├── logs/                     # Updater logs (gitignored)
+│   ├── servers/                  # Placeholder directory
+│   ├── templates/                # Helper documentation
+│   └── *.md, LICENSE, .gitignore # Documentation and metadata
+├── TheServers/                   # Server data (not tracked in git)
+├── Server Backups/               # Manual backups (not tracked)
+└── Server Base Files/            # Archived versions (not tracked)
+```
 
-These files form the updater tool and are tracked in git:
+### Application Code (minecraft-server-manager/)
+
+All updater tool code lives in the `minecraft-server-manager/` directory:
 
 | File | Purpose |
 |------|---------|
@@ -76,31 +96,28 @@ These files form the updater tool and are tracked in git:
 | [MinecraftServer.ps1](MinecraftServer.ps1) | PowerShell class for server object representation |
 | [run.bat](run.bat) | Execution wrapper that bypasses PowerShell execution policy |
 | [configuration.json.example](configuration.json.example) | Template for configuration.json (copy to create active config) |
-| README.md, SETUP.md, CONFIGURATION.md, TROUBLESHOOTING.md | Documentation |
+| [logs/](logs/) | Updater execution logs and history (gitignored) |
+| README.md, SETUP.md, etc. | Documentation |
 | [LICENSE](LICENSE) | MIT License |
-| [.gitignore](.gitignore) | Git exclusion patterns |
 
-### Server Data (Excluded from Git)
+### Server Data (Root Directory)
 
-These directories contain your Minecraft servers and runtime data:
+Your actual Minecraft servers and data remain in the root directory:
 
 | Directory | Purpose | Tracked in Git? |
 |-----------|---------|-----------------|
-| `TheServers/` | Active Minecraft Bedrock server instances | No |
-| `Server Backups/` | Manual backups (if you create them) | No |
-| `logs/` | Updater execution logs and history | No |
-| `configuration.json` | Active configuration (auto-modified by script) | No |
-| `servers/` | Placeholder directory (currently empty) | Partial* |
+| `../TheServers/` | Active Minecraft Bedrock server instances | No |
+| `../Server Backups/` | Manual backups (if you create them) | No |
+| `../Server Base Files/` | Archived server versions | No |
 
-\* The `servers/` directory is currently a placeholder. Actual servers are in `TheServers/`.
-
-**Why This Separation Matters**:
-- **Clean version control**: Only tool code is tracked, not user data
-- **No git conflicts**: Auto-modified files don't create merge issues
+**Why This Structure?**
+- **Clean separation**: Tool code in one place, server data in another
+- **Version control**: Only tool updates are tracked, not server data
+- **No conflicts**: Auto-modified config doesn't create git issues
 - **Privacy**: Server worlds and player data stay local
-- **Portability**: Tool can be cloned to any system without bundling server data
+- **Portability**: Clone the manager, point it at any server directory
 
-See [CONFIGURATION.md#directory-structure](CONFIGURATION.md#directory-structure) for complete directory tree.
+See [CONFIGURATION.md#directory-structure](CONFIGURATION.md#directory-structure) for complete technical details.
 
 ---
 
@@ -131,6 +148,9 @@ The updater follows this process:
 ### Manual Execution
 
 ```powershell
+# Navigate to the manager directory
+cd minecraft-server-manager
+
 # Using the batch file (recommended)
 .\run.bat
 
@@ -145,7 +165,8 @@ Set up Windows Task Scheduler to run `run.bat` automatically:
 1. Open Task Scheduler (`Win + R` → `taskschd.msc`)
 2. Create Task with:
    - **Trigger**: Daily at 4:00 AM (or preferred time)
-   - **Action**: Start program → `C:\path\to\run.bat`
+   - **Action**: Start program → `C:\path\to\minecraft-server-manager\run.bat`
+   - **Start in**: `C:\path\to\minecraft-server-manager\`
    - **Settings**: Run with highest privileges
 
 See [SETUP.md#step-6-schedule-automatic-updates](SETUP.md#step-6-schedule-automatic-updates-recommended) for detailed instructions.
@@ -247,13 +268,13 @@ The updater uses `configuration.json` to track versions and locate servers:
 ```json
 {
     "currentMinecraftVersion": "1.21.132.3",
-    "serverRoot": "./TheServers"
+    "serverRoot": "../TheServers"
 }
 ```
 
 **Fields**:
 - `currentMinecraftVersion`: Auto-updated when new version detected (can also be set manually)
-- `serverRoot`: Path to directory containing server folders (default: `./TheServers`)
+- `serverRoot`: Path to directory containing server folders (default: `../TheServers`)
 
 **Setup**: Copy `configuration.json.example` to `configuration.json` before first run.
 
@@ -265,12 +286,12 @@ See [CONFIGURATION.md](CONFIGURATION.md) for complete technical reference.
 
 ## Adding New Servers
 
-The updater automatically detects servers in the `TheServers/` directory:
+The updater automatically detects servers in the `TheServers/` directory (in the parent/root directory):
 
-1. Create new folder: `TheServers\NewServerName`
+1. Create new folder: `..\TheServers\NewServerName` (from minecraft-server-manager/)
 2. Copy Minecraft Bedrock server files (bedrock_server.exe, server.properties, etc.)
 3. Configure unique ports in `server.properties` (`server-port` and `server-portv6`)
-4. Run the updater: `.\run.bat`
+4. Run the updater: `cd minecraft-server-manager && .\run.bat`
 
 **Required files per server**:
 - `bedrock_server.exe` - Server executable

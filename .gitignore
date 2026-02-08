@@ -1,0 +1,14 @@
+# Root .gitignore - Prevents accidentally committing server data
+
+# Server data directories (excluded from version control)
+logs/
+TheServers/
+Server Backups/
+Server Base Files/
+
+# Runtime configuration (auto-modified)
+configuration.json
+
+# IDE and tool directories
+.idea/
+.claude/

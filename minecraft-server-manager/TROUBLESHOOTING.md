@@ -2,7 +2,10 @@
 
 This guide helps you solve common issues with the Minecraft Bedrock Server Updater tool.
 
-**Note**: This guide covers problems with the **updater tool itself**, not Minecraft server configuration or gameplay issues. For Minecraft server help, see the [official Bedrock documentation](https://learn.microsoft.com/en-us/minecraft/creator/documents/dedicatedservers).
+**Important Notes**:
+- This guide covers problems with the **updater tool itself**, not Minecraft server configuration or gameplay issues. For Minecraft server help, see the [official Bedrock documentation](https://learn.microsoft.com/en-us/minecraft/creator/documents/dedicatedservers).
+- **All commands should be run from the `minecraft-server-manager/` directory** unless otherwise specified.
+- Server data (TheServers/, Server Backups/) is located in the parent/root directory (`../` from minecraft-server-manager/).
 
 ## Table of Contents
 
@@ -91,7 +94,7 @@ If `configuration.json.example` doesn't exist either, create the file manually:
 @"
 {
     "currentMinecraftVersion": "1.21.132.3",
-    "serverRoot": "./TheServers"
+    "serverRoot": "../TheServers"
 }
 "@ | Out-File "configuration.json" -Encoding UTF8
 ```
@@ -204,8 +207,8 @@ Task shows "Ready" in Task Scheduler but never executes, or logs show no recent 
 **Check**: Task Properties → Actions tab
 
 **Should be**:
-- **Program/script**: Full path to `run.bat` (e.g., `C:\Minecraft Servers\run.bat`)
-- **Start in**: Directory path without filename (e.g., `C:\Minecraft Servers\`)
+- **Program/script**: Full path to `run.bat` (e.g., `C:\Minecraft Servers\minecraft-server-manager\run.bat`)
+- **Start in**: Directory path without filename (e.g., `C:\Minecraft Servers\minecraft-server-manager\`)
 
 **Fix**: Edit action with correct paths (use Browse button)
 

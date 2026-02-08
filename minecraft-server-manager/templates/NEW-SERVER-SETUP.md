@@ -2,10 +2,12 @@
 
 This is a quick checklist for adding a new Minecraft Bedrock server to the updater. For detailed instructions, see [SETUP.md](../SETUP.md#adding-new-servers).
 
+**Note**: All commands in this guide should be run from the `minecraft-server-manager/` directory. Server data is located in `../TheServers/` (parent directory).
+
 ## Prerequisites
 
 - [ ] You have an existing Minecraft Bedrock server or have downloaded the server files from https://www.minecraft.net/en-us/download/server/bedrock
-- [ ] The updater tool is already set up (configuration.json exists)
+- [ ] The updater tool is already set up (configuration.json exists in minecraft-server-manager/)
 - [ ] You know which ports are available (check existing servers to avoid conflicts)
 
 ## Quick Steps
@@ -14,7 +16,8 @@ This is a quick checklist for adding a new Minecraft Bedrock server to the updat
 
 ```powershell
 # Replace "NewServerName" with your desired server name
-New-Item -ItemType Directory -Path ".\TheServers\NewServerName"
+# (from minecraft-server-manager/ directory)
+New-Item -ItemType Directory -Path "..\TheServers\NewServerName"
 ```
 
 ### 2. Copy Required Files
@@ -36,13 +39,13 @@ Copy these files from your Minecraft Bedrock server download into the new folder
 ```powershell
 # Example: Copy from downloaded Bedrock server
 $source = "C:\Downloads\bedrock-server-1.21.132.3"
-$dest = ".\TheServers\NewServerName"
+$dest = "..\TheServers\NewServerName"
 Copy-Item "$source\*" "$dest\" -Recurse -Exclude "worlds"
 ```
 
 ### 3. Configure Server Settings
 
-Edit `TheServers\NewServerName\server.properties`:
+Edit `..\TheServers\NewServerName\server.properties`:
 
 **Critical Settings to Change**:
 ```properties
@@ -80,7 +83,7 @@ For all available settings, see the [official Bedrock documentation](https://lea
 If you don't have permissions.json or allowlist.json:
 
 ```powershell
-$serverPath = ".\TheServers\NewServerName"
+$serverPath = "..\TheServers\NewServerName"
 
 # Create empty permissions.json
 "[]" | Out-File "$serverPath\permissions.json" -Encoding UTF8 -NoNewline
@@ -91,14 +94,14 @@ $serverPath = ".\TheServers\NewServerName"
 
 ### 5. Run the Updater
 
-The updater will automatically detect the new server on the next run:
+The updater will automatically detect the new server on the next run (from minecraft-server-manager/ directory):
 
 ```powershell
 .\run.bat
 ```
 
 **What happens**:
-1. Script scans TheServers/ directory
+1. Script scans ../TheServers/ directory
 2. Detects new server folder
 3. Validates required files exist
 4. Applies any pending updates
@@ -149,7 +152,7 @@ Access your router admin panel (usually 192.168.1.1 or 192.168.0.1) and:
 
 **Check**:
 ```powershell
-$serverPath = ".\TheServers\NewServerName"
+$serverPath = "..\TheServers\NewServerName"
 @("bedrock_server.exe", "server.properties", "permissions.json", "allowlist.json") | ForEach-Object {
     $exists = Test-Path "$serverPath\$_"
     [PSCustomObject]@{
@@ -176,8 +179,8 @@ $serverPath = ".\TheServers\NewServerName"
 2. **Invalid JSON in permissions.json or allowlist.json**
    ```powershell
    # Validate JSON syntax
-   Get-Content "TheServers\NewServerName\permissions.json" | ConvertFrom-Json
-   Get-Content "TheServers\NewServerName\allowlist.json" | ConvertFrom-Json
+   Get-Content "..\TheServers\NewServerName\permissions.json" | ConvertFrom-Json
+   Get-Content "..\TheServers\NewServerName\allowlist.json" | ConvertFrom-Json
    ```
    Fix: Ensure valid JSON format (at minimum: `[]`)
 
@@ -208,14 +211,14 @@ Get-Process bedrock_server | Where-Object {
 } | Stop-Process
 
 # Check server version
-Get-Content "TheServers\NewServerName\currentVersion.json" | ConvertFrom-Json
+Get-Content "..\TheServers\NewServerName\currentVersion.json" | ConvertFrom-Json
 
 # View server console logs (if logging enabled in server.properties)
-Get-Content "TheServers\NewServerName\*.log" -Tail 50
+Get-Content "..\TheServers\NewServerName\*.log" -Tail 50
 
 # Backup server before making changes
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
-Copy-Item "TheServers\NewServerName" "Server Backups\NewServerName_$timestamp" -Recurse
+Copy-Item "..\TheServers\NewServerName" "..\Server Backups\NewServerName_$timestamp" -Recurse
 ```
 
 ## Additional Resources
@@ -227,4 +230,4 @@ Copy-Item "TheServers\NewServerName" "Server Backups\NewServerName_$timestamp" -
 
 ---
 
-**Tip**: Always backup your server before making changes: `Copy-Item "TheServers\ServerName" "Server Backups\ServerName_backup" -Recurse`
+**Tip**: Always backup your server before making changes: `Copy-Item "..\TheServers\ServerName" "..\Server Backups\ServerName_backup" -Recurse`
