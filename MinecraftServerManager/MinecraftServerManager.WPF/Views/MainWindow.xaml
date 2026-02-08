@@ -5,6 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         xmlns:converters="clr-namespace:MinecraftServerManager.WPF.Converters"
+        xmlns:views="clr-namespace:MinecraftServerManager.WPF.Views"
+        xmlns:viewModels="clr-namespace:MinecraftServerManager.WPF.ViewModels"
         mc:Ignorable="d"
         Title="Minecraft Server Manager" Height="700" Width="1200"
         WindowStartupLocation="CenterScreen"
@@ -13,6 +15,17 @@
     <Window.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
         <converters:InverseBooleanConverter x:Key="InverseBool"/>
+
+        <!-- DataTemplates to map ViewModels to Views -->
+        <DataTemplate DataType="{x:Type viewModels:ServerListViewModel}">
+            <views:ServerListView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:UpdateHistoryViewModel}">
+            <views:UpdateHistoryView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:SettingsViewModel}">
+            <views:SettingsView/>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
