@@ -1,6 +1,0 @@
-C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager\MinecraftServerManager.Core\obj\Debug\net8.0\MinecraftServerManager.Core.csproj.AssemblyReference.cache
-C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager\MinecraftServerManager.Core\obj\Debug\net8.0\MinecraftServerManager.Core.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager\MinecraftServerManager.Core\obj\Debug\net8.0\MinecraftServerManager.Core.AssemblyInfoInputs.cache
-C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager\MinecraftServerManager.Core\obj\Debug\net8.0\MinecraftServerManager.Core.AssemblyInfo.cs
-C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager\MinecraftServerManager.Core\obj\Debug\net8.0\MinecraftServerManager.Core.csproj.CoreCompileInputs.cache
-C:\Users\Janther\Downloads\Minecraft Servers\MinecraftServerManager\MinecraftServerManager.Core\obj\Debug\net8.0\MinecraftServerManager.Core.sourcelink.json
