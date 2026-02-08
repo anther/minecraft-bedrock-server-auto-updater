@@ -1,0 +1,109 @@
+<Window x:Class="MinecraftServerManager.WPF.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:converters="clr-namespace:MinecraftServerManager.WPF.Converters"
+        mc:Ignorable="d"
+        Title="Minecraft Server Manager" Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        ui:WindowHelper.UseModernWindowStyle="True">
+
+    <Window.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:InverseBooleanConverter x:Key="InverseBool"/>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Toolbar -->
+            <RowDefinition Height="*"/>
+            <!-- Main Content -->
+            <RowDefinition Height="Auto"/>
+            <!-- Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <ToolBar Grid.Row="0" Padding="10,5">
+            <Button Content="Check for Updates"
+                    Command="{Binding CheckForUpdatesCommand}"
+                    ToolTip="Check if a new Minecraft server version is available"
+                    Padding="10,5"/>
+            <Separator/>
+            <Button Content="Run Update"
+                    Command="{Binding RunUpdateCommand}"
+                    ToolTip="Download and apply the latest server update"
+                    Padding="10,5"
+                    Style="{StaticResource AccentButtonStyle}"/>
+            <Separator/>
+            <TextBlock Text="Current:" VerticalAlignment="Center" Margin="10,0,5,0"/>
+            <TextBlock Text="{Binding CurrentVersion}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,15,0"/>
+            <TextBlock Text="Latest:" VerticalAlignment="Center" Margin="10,0,5,0"/>
+            <TextBlock Text="{Binding LatestVersion}" VerticalAlignment="Center" FontWeight="Bold"/>
+            <TextBlock Text="(Update Available!)"
+                       VerticalAlignment="Center"
+                       Foreground="Orange"
+                       FontWeight="Bold"
+                       Margin="10,0,0,0"
+                       Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVisibility}}"/>
+        </ToolBar>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <!-- Navigation Sidebar -->
+                <ColumnDefinition Width="*"/>
+                <!-- Content Area -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation Sidebar -->
+            <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Margin="10">
+                    <TextBlock Text="Navigation" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <Button Content="Servers"
+                            Command="{Binding NavigateToServersCommand}"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,0,0,10"
+                            Padding="10,8"
+                            ToolTip="View and manage all discovered servers"/>
+
+                    <Button Content="Update History"
+                            Command="{Binding NavigateToHistoryCommand}"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,0,0,10"
+                            Padding="10,8"
+                            ToolTip="View past update history"/>
+
+                    <Button Content="Settings"
+                            Command="{Binding NavigateToSettingsCommand}"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,0,0,10"
+                            Padding="10,8"
+                            ToolTip="Configure application settings"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Content Area -->
+            <ContentControl Grid.Column="1" Content="{Binding CurrentView}" Margin="10"/>
+
+            <!-- Loading Overlay -->
+            <Grid Grid.Column="1" Background="#80000000" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ui:ProgressRing IsActive="True" Width="60" Height="60"/>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="16" Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2" Padding="10,5">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusMessage}"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
