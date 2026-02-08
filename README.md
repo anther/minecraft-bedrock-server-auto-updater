@@ -88,7 +88,6 @@ These directories contain your Minecraft servers and runtime data:
 |-----------|---------|-----------------|
 | `TheServers/` | Active Minecraft Bedrock server instances | No |
 | `Server Backups/` | Manual backups (if you create them) | No |
-| `Server Base Files/` | Archived server versions for reference | No |
 | `logs/` | Updater execution logs and history | No |
 | `configuration.json` | Active configuration (auto-modified by script) | No |
 | `servers/` | Placeholder directory (currently empty) | Partial* |

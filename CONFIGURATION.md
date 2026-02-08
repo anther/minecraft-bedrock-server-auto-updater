@@ -132,11 +132,8 @@ Minecraft Servers/
 │   ├── SledgerSurvival/
 │   └── SurvivalIsland/
 │
-├── Server Backups/             # Manual backups (gitignored)
-│   └── ... (user-created backups)
-│
-└── Server Base Files/          # Archived server versions (gitignored)
-    └── ... (old Minecraft versions for reference)
+└── Server Backups/             # Manual backups (gitignored)
+    └── ... (user-created backups)
 ```
 
 ### Code Files (Version Controlled)
@@ -161,7 +158,6 @@ These directories contain runtime data and should NOT be committed to version co
 |-----------|---------|------------|
 | `TheServers/` | Active server instances with worlds and configurations | Yes |
 | `Server Backups/` | User-created manual backups | Yes |
-| `Server Base Files/` | Archived Minecraft Bedrock server versions | Yes |
 | `logs/` | Updater execution logs and history | Yes |
 | `configuration.json` | Active configuration (auto-modified) | Yes |
 | `servers/` | Placeholder directory (currently unused) | Yes |

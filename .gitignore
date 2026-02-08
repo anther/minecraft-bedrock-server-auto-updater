@@ -5,7 +5,6 @@ servers/*
 !servers/server directories go here.txt
 TheServers
 Server Backups
-Server Base Files
 
 # Auto-generated configuration (create from configuration.json.example)
 configuration.json

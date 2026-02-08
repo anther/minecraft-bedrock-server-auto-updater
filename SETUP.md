@@ -92,7 +92,6 @@ These are the updater tool files:
 These directories contain your Minecraft servers and should be excluded from git:
 - `TheServers/` - Your actual server instances
 - `Server Backups/` - Manual backups (if you create them)
-- `Server Base Files/` - Archived server versions
 - `logs/` - Updater execution logs
 - `configuration.json` - Auto-generated configuration (excluded from git)
 
