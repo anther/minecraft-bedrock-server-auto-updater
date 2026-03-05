@@ -74,21 +74,25 @@ public partial class ServerItemViewModel : ViewModelBase
 
     /// <summary>
     /// Current number of players online
+    /// NOTE: Not yet implemented. Will be populated via console monitoring in the future.
     /// </summary>
     public int PlayerCount => _server.PlayerCount;
 
     /// <summary>
     /// List of player names currently online
+    /// NOTE: Not yet implemented. Will be populated via console monitoring in the future.
     /// </summary>
     public List<string> PlayerNames => _server.PlayerNames;
 
     /// <summary>
     /// Player count display string (e.g., "3/10")
+    /// NOTE: Not yet implemented. Will show "0/[max]" until console monitoring is implemented.
     /// </summary>
     public string PlayerCountDisplay => _server.PlayerCountDisplay;
 
     /// <summary>
     /// Last time player data was queried
+    /// NOTE: Not yet implemented. Will be set when console monitoring is implemented.
     /// </summary>
     public DateTime? LastPlayerQueryTime => _server.LastPlayerQueryTime;
 

@@ -23,7 +23,9 @@ public class MinecraftServer
     public bool IsRunning { get; set; }
     public int? ProcessId { get; set; }
 
-    // Player tracking properties (dynamic state, updated via polling)
+    // Player tracking properties (dynamic state, will be populated via console monitoring in future)
+    // NOTE: Bedrock servers do not support the Java Edition Query Protocol.
+    // Player tracking will be implemented by monitoring console output for player join/leave events.
     public int PlayerCount { get; set; }
     public List<string> PlayerNames { get; set; } = new();
     public DateTime? LastPlayerQueryTime { get; set; }
