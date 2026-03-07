@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8a8a9a;
+            --accent-green: #4ecca3;
+            --accent-red: #e74c3c;
+            --accent-blue: #00b4d8;
+            --accent-gold: #f0a500;
+            --border: #2a2a4a;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .header-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .header-meta span { color: var(--accent-gold); }
+
+        main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+
+        /* Summary cards row */
+        .summary {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-card {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+        }
+
+        .summary-card .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.35rem;
+        }
+
+        .summary-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+
+        .summary-card .value.small { font-size: 1.1rem; }
+
+        /* Section headings */
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.35rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Server cards grid */
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .server-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+        }
+
+        .server-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .server-card-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+        }
+
+        .status-badge.online {
+            background: rgba(78, 204, 163, 0.15);
+            color: var(--accent-green);
+        }
+
+        .status-badge.offline {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--accent-red);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .status-badge.online .status-dot { background: var(--accent-green); }
+        .status-badge.offline .status-dot { background: var(--accent-red); }
+
+        .server-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.85rem;
+        }
+
+        .server-detail .key { color: var(--text-secondary); }
+
+        /* Update history table */
+        .history-section { margin-bottom: 1.5rem; }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .history-table th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .history-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-table tr:hover td {
+            background: rgba(15, 52, 96, 0.4);
+        }
+
+        .version-tag {
+            color: var(--accent-gold);
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        /* Log viewer */
+        .log-section { margin-bottom: 1.5rem; }
+
+        .log-container {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            max-height: 350px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+            line-height: 1.5;
+        }
+
+        .log-line { white-space: pre-wrap; word-break: break-all; }
+        .log-timestamp { color: var(--accent-blue); }
+        .log-message { color: var(--text-primary); }
+
+        .log-line.error .log-message { color: var(--accent-red); }
+        .log-line.warning .log-message { color: var(--accent-gold); }
+
+        .log-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+            text-align: right;
+        }
+
+        /* Error / empty states */
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .error-banner {
+            background: rgba(231, 76, 60, 0.15);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            color: var(--accent-red);
+            font-size: 0.85rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        @media (max-width: 600px) {
+            .summary { flex-direction: column; }
+            header { flex-direction: column; gap: 0.5rem; }
+            .header-meta { text-align: left; }
+            main { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Minecraft Bedrock Server Dashboard</h1>
+        <div class="header-meta">
+            <div>Version: <span id="header-version">--</span></div>
+            <div>Last refreshed: <span id="header-refresh">--</span></div>
+        </div>
+    </header>
+
+    <main>
+        <div id="error-container"></div>
+
+        <div class="summary" id="summary-section">
+            <div class="summary-card">
+                <div class="label">Current Version</div>
+                <div class="value" id="summary-version">--</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Servers</div>
+                <div class="value" id="summary-servers">--</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Online</div>
+                <div class="value" id="summary-online">--</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Total Updates</div>
+                <div class="value" id="summary-updates">--</div>
+            </div>
+        </div>
+
+        <h2 class="section-title">Servers</h2>
+        <div class="server-grid" id="server-grid">
+            <div class="empty-state">Loading...</div>
+        </div>
+
+        <div class="history-section">
+            <h2 class="section-title">Update History</h2>
+            <div id="history-container">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <h2 class="section-title">Recent Logs</h2>
+            <div class="log-container" id="log-container">
+                <div class="empty-state">Loading...</div>
+            </div>
+            <div class="log-meta" id="log-meta"></div>
+        </div>
+    </main>
+
+    <script>
+        const REFRESH_INTERVAL = 30000;
+
+        async function fetchJson(endpoint) {
+            const res = await fetch(endpoint);
+            if (!res.ok) throw new Error(`${endpoint}: HTTP ${res.status}`);
+            return res.json();
+        }
+
+        function showError(msg) {
+            document.getElementById('error-container').innerHTML =
+                `<div class="error-banner">Dashboard error: ${escapeHtml(msg)}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        function renderConfig(config) {
+            document.getElementById('summary-version').textContent = config.currentMinecraftVersion;
+            document.getElementById('header-version').textContent = config.currentMinecraftVersion;
+        }
+
+        function renderServers(data) {
+            const grid = document.getElementById('server-grid');
+            const servers = data.servers || [];
+
+            document.getElementById('summary-servers').textContent = servers.length;
+            const onlineCount = servers.filter(s => s.isRunning).length;
+            const el = document.getElementById('summary-online');
+            el.textContent = `${onlineCount} / ${servers.length}`;
+            el.style.color = onlineCount > 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+            if (!servers.length) {
+                grid.innerHTML = '<div class="empty-state">No servers found</div>';
+                return;
+            }
+
+            grid.innerHTML = servers.map(s => `
+                <div class="server-card">
+                    <div class="server-card-header">
+                        <h3>${escapeHtml(s.name)}</h3>
+                        <span class="status-badge ${s.isRunning ? 'online' : 'offline'}">
+                            <span class="status-dot"></span>
+                            ${s.isRunning ? 'Online' : 'Offline'}
+                        </span>
+                    </div>
+                    <div class="server-detail"><span class="key">Version</span><span class="version-tag">${escapeHtml(s.version)}</span></div>
+                    <div class="server-detail"><span class="key">Gamemode</span><span>${escapeHtml(s.gamemode)}</span></div>
+                    <div class="server-detail"><span class="key">Difficulty</span><span>${escapeHtml(s.difficulty)}</span></div>
+                    <div class="server-detail"><span class="key">Port</span><span>${s.serverPort}</span></div>
+                    <div class="server-detail"><span class="key">Port v6</span><span>${s.serverPortV6}</span></div>
+                    <div class="server-detail"><span class="key">Max Players</span><span>${s.maxPlayers}</span></div>
+                </div>
+            `).join('');
+        }
+
+        function renderHistory(history) {
+            const container = document.getElementById('history-container');
+            const totalUpdates = history.reduce((sum, h) => sum + h.TimesUpdated, 0);
+            document.getElementById('summary-updates').textContent = totalUpdates;
+
+            if (!history.length) {
+                container.innerHTML = '<div class="empty-state">No update history</div>';
+                return;
+            }
+
+            const rows = history.slice().reverse().map(h => `
+                <tr>
+                    <td><span class="version-tag">${escapeHtml(h.Version)}</span></td>
+                    <td>${escapeHtml(h.FirstUpdatedAt)}</td>
+                    <td>${escapeHtml(h.LastUpdatedAt)}</td>
+                    <td>${h.TimesUpdated}</td>
+                </tr>
+            `).join('');
+
+            container.innerHTML = `
+                <table class="history-table">
+                    <thead><tr>
+                        <th>Version</th>
+                        <th>First Updated</th>
+                        <th>Last Updated</th>
+                        <th>Times</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderLogs(data) {
+            const container = document.getElementById('log-container');
+            const meta = document.getElementById('log-meta');
+
+            if (!data.lines.length) {
+                container.innerHTML = '<div class="empty-state">No logs available</div>';
+                meta.textContent = '';
+                return;
+            }
+
+            container.innerHTML = data.lines.map(line => {
+                const match = line.match(/^(\[.+?\])\s(.+)$/);
+                const isError = /error/i.test(line);
+                const isWarning = /warning/i.test(line);
+                const cls = isError ? ' error' : isWarning ? ' warning' : '';
+
+                if (match) {
+                    return `<div class="log-line${cls}"><span class="log-timestamp">${escapeHtml(match[1])}</span> <span class="log-message">${escapeHtml(match[2])}</span></div>`;
+                }
+                return `<div class="log-line${cls}"><span class="log-message">${escapeHtml(line)}</span></div>`;
+            }).join('');
+
+            meta.textContent = `Showing last ${data.lines.length} of ${data.totalLines} log lines`;
+
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateTimestamp() {
+            document.getElementById('header-refresh').textContent =
+                new Date().toLocaleTimeString();
+        }
+
+        async function refresh() {
+            try {
+                const [config, history, logs, servers] = await Promise.all([
+                    fetchJson('/api/config'),
+                    fetchJson('/api/history'),
+                    fetchJson('/api/logs'),
+                    fetchJson('/api/servers')
+                ]);
+                clearError();
+                renderConfig(config);
+                renderServers(servers);
+                renderHistory(history);
+                renderLogs(logs);
+                updateTimestamp();
+            } catch (err) {
+                console.error('Refresh failed:', err);
+                showError(err.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', refresh);
+        setInterval(refresh, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>
