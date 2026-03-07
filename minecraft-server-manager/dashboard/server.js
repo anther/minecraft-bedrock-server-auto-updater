@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const dgram = require('dgram');
 const { execFileSync } = require('child_process');
+const { WebSocketServer } = require('ws');
 const { parseServerProperties, writeServerProperties } = require('./lib/server-properties');
 const { validatePropertyUpdates } = require('./lib/validation');
 const { readPropertyHistory, appendPropertyHistory, revertPropertyChange, redoPropertyChange } = require('./lib/property-history');
@@ -248,16 +249,20 @@ async function queryAllServers(servers) {
     return map;
 }
 
-// --- Live Reload (SSE) ---
+// --- Gather All Dashboard Data ---
 
-const liveReloadClients = new Set();
-
-fs.watch(__dirname, { recursive: false }, (_eventType, filename) => {
-    if (!filename || filename === 'server.js') return;
-    for (const res of liveReloadClients) {
-        res.write(`data: ${filename}\n\n`);
-    }
-});
+async function gatherAllData() {
+    const config = readConfig();
+    const servers = discoverServers(config.serverRoot);
+    const queryMap = await queryAllServers(servers);
+    for (const s of servers) s.query = queryMap[s.name] || null;
+    return {
+        config: { currentMinecraftVersion: config.currentMinecraftVersion },
+        servers: { servers },
+        history: readUpdateHistory(),
+        logs: readRecentLogs(50)
+    };
+}
 
 // --- Request Helpers ---
 
@@ -323,6 +328,11 @@ async function handleRequest(req, res) {
                 res.end(html);
                 break;
             }
+            case '/favicon.ico': {
+                res.writeHead(204);
+                res.end();
+                break;
+            }
             case '/api/config': {
                 sendJson(res, readConfig());
                 break;
@@ -334,17 +344,6 @@ async function handleRequest(req, res) {
             case '/api/logs': {
                 sendJson(res, readRecentLogs(50));
                 break;
-            }
-            case '/api/live-reload': {
-                res.writeHead(200, {
-                    'Content-Type': 'text/event-stream',
-                    'Cache-Control': 'no-cache',
-                    'Connection': 'keep-alive'
-                });
-                res.write('data: connected\n\n');
-                liveReloadClients.add(res);
-                req.on('close', () => liveReloadClients.delete(res));
-                return;
             }
             case '/api/servers': {
                 const config = readConfig();
@@ -409,6 +408,7 @@ async function handleRequest(req, res) {
                         writeServerProperties(propsPath, updates);
                         appendPropertyHistory(serverDir, changes);
                         sendJson(res, { message: 'Properties updated', changes });
+                        broadcastUpdate();
                         break;
                     }
 
@@ -426,6 +426,7 @@ async function handleRequest(req, res) {
                         }
                         revertPropertyChange(serverDir, index);
                         sendJson(res, { message: 'Change reverted' });
+                        broadcastUpdate();
                         break;
                     }
 
@@ -438,6 +439,7 @@ async function handleRequest(req, res) {
                         }
                         redoPropertyChange(serverDir, index);
                         sendJson(res, { message: 'Change re-applied' });
+                        broadcastUpdate();
                         break;
                     }
 
@@ -456,6 +458,69 @@ async function handleRequest(req, res) {
 }
 
 const server = http.createServer(handleRequest);
+
+// --- WebSocket Server ---
+
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', async (ws) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
+    // Send initial data snapshot
+    try {
+        const data = await gatherAllData();
+        ws.send(JSON.stringify({ type: 'init', ...data }));
+    } catch (err) {
+        ws.send(JSON.stringify({ type: 'error', message: err.message }));
+    }
+
+    ws.on('message', (raw) => {
+        try {
+            const msg = JSON.parse(raw);
+            if (msg.type === 'request-refresh') {
+                gatherAllData().then(data => {
+                    if (ws.readyState === ws.OPEN) {
+                        ws.send(JSON.stringify({ type: 'update', ...data }));
+                    }
+                }).catch(() => {});
+            }
+        } catch { /* ignore malformed messages */ }
+    });
+});
+
+async function broadcastUpdate() {
+    if (wss.clients.size === 0) return;
+    try {
+        const data = await gatherAllData();
+        const msg = JSON.stringify({ type: 'update', ...data });
+        for (const client of wss.clients) {
+            if (client.readyState === client.OPEN) client.send(msg);
+        }
+    } catch (err) {
+        console.error('Broadcast error:', err.message);
+    }
+}
+
+setInterval(broadcastUpdate, 30000);
+
+// Heartbeat: detect dead connections
+setInterval(() => {
+    for (const ws of wss.clients) {
+        if (!ws.isAlive) { ws.terminate(); continue; }
+        ws.isAlive = false;
+        ws.ping();
+    }
+}, 30000);
+
+// Live reload via WebSocket
+fs.watch(__dirname, { recursive: false }, (_eventType, filename) => {
+    if (!filename || filename === 'server.js') return;
+    const msg = JSON.stringify({ type: 'live-reload', filename });
+    for (const client of wss.clients) {
+        if (client.readyState === client.OPEN) client.send(msg);
+    }
+});
 
 server.listen(PORT, () => {
     console.log(`Minecraft Server Dashboard running at http://localhost:${PORT}`);

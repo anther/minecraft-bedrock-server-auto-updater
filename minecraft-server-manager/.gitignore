@@ -15,3 +15,6 @@ servers/*
 
 # Auto-generated configuration (create from configuration.json.example)
 configuration.json
+
+# Dashboard dependencies
+dashboard/node_modules/

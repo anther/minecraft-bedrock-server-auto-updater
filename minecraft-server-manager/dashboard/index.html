@@ -512,8 +512,6 @@
     </main>
 
     <script>
-        const REFRESH_INTERVAL = 30000;
-
         async function fetchJson(endpoint) {
             const res = await fetch(endpoint);
             if (!res.ok) throw new Error(`${endpoint}: HTTP ${res.status}`);
@@ -702,34 +700,86 @@
                 new Date().toLocaleTimeString();
         }
 
-        async function refresh() {
-            try {
-                const [config, history, logs, servers] = await Promise.all([
-                    fetchJson('/api/config'),
-                    fetchJson('/api/history'),
-                    fetchJson('/api/logs'),
-                    fetchJson('/api/servers')
-                ]);
+        // --- WebSocket Connection ---
+
+        let ws = null;
+        let reconnectAttempts = 0;
+        let pendingRefresh = null;
+
+        function connectWebSocket() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}`);
+
+            ws.onopen = () => {
+                reconnectAttempts = 0;
                 clearError();
-                renderConfig(config);
-                renderServers(servers);
-                renderHistory(history);
-                renderLogs(logs);
-                updateTimestamp();
-            } catch (err) {
-                console.error('Refresh failed:', err);
-                showError(err.message);
-            }
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    switch (msg.type) {
+                        case 'init':
+                        case 'update':
+                            clearError();
+                            renderConfig(msg.config);
+                            renderServers(msg.servers);
+                            renderHistory(msg.history);
+                            renderLogs(msg.logs);
+                            updateTimestamp();
+                            if (pendingRefresh) {
+                                const resolve = pendingRefresh;
+                                pendingRefresh = null;
+                                resolve();
+                            }
+                            break;
+                        case 'live-reload':
+                            location.reload();
+                            break;
+                        case 'error':
+                            showError(msg.message);
+                            break;
+                    }
+                } catch (err) {
+                    console.error('WebSocket message error:', err);
+                }
+            };
+
+            ws.onclose = () => {
+                ws = null;
+                scheduleReconnect();
+            };
+
+            ws.onerror = () => {};
         }
 
-        // Live reload via SSE
-        const sse = new EventSource('/api/live-reload');
-        sse.onmessage = (e) => {
-            if (e.data !== 'connected') location.reload();
-        };
+        function scheduleReconnect() {
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+            showError(`Connection lost. Reconnecting in ${Math.round(delay / 1000)}s...`);
+            setTimeout(connectWebSocket, delay);
+        }
 
-        document.addEventListener('DOMContentLoaded', refresh);
-        setInterval(refresh, REFRESH_INTERVAL);
+        // Promise-based refresh for edit-properties.js compatibility
+        async function refresh() {
+            return new Promise((resolve) => {
+                pendingRefresh = resolve;
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'request-refresh' }));
+                } else {
+                    pendingRefresh = null;
+                    resolve();
+                }
+                setTimeout(() => {
+                    if (pendingRefresh === resolve) {
+                        pendingRefresh = null;
+                        resolve();
+                    }
+                }, 5000);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', connectWebSocket);
     </script>
     <script src="/js/edit-properties.js"></script>
 </body>
