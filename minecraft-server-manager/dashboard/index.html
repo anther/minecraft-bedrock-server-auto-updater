@@ -159,6 +159,38 @@
 
         .server-detail .key { color: var(--text-secondary); }
 
+        /* Card tabs */
+        .card-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0.6rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.35rem 0.65rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .card-tab:hover { color: var(--text-primary); }
+
+        .card-tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
         /* Update history table */
         .history-section { margin-bottom: 1.5rem; }
 
@@ -245,6 +277,175 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg-primary); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* Edit mode */
+        .card-actions {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .edit-btn, .history-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .edit-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .history-btn:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+
+        .running-warning {
+            background: rgba(240, 165, 0, 0.15);
+            border: 1px solid var(--accent-gold);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.75rem;
+            color: var(--accent-gold);
+            font-size: 0.78rem;
+        }
+
+        .edit-form { display: flex; flex-direction: column; gap: 0.35rem; }
+
+        .edit-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.2rem 0;
+            font-size: 0.85rem;
+        }
+
+        .edit-label { color: var(--text-secondary); flex-shrink: 0; }
+
+        .edit-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 4px;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.82rem;
+            width: 140px;
+            text-align: right;
+        }
+
+        .edit-input:focus { outline: none; border-color: var(--accent-blue); }
+
+        select.edit-input { cursor: pointer; }
+
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 20px;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            transition: 0.2s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background: rgba(78, 204, 163, 0.3); border-color: var(--accent-green); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--accent-green); }
+
+        .edit-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .btn-save, .btn-cancel {
+            padding: 0.4rem 1rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .btn-save { background: var(--accent-green); color: #0d1117; }
+        .btn-cancel { background: var(--border); color: var(--text-primary); }
+        .btn-save:hover, .btn-cancel:hover { opacity: 0.85; }
+        .btn-save:disabled, .btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* History panel */
+        .history-panel {
+            border-top: 1px solid var(--border);
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+        }
+
+        .history-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .history-entry {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 0.65rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.78rem;
+        }
+
+        .history-entry.reverted { opacity: 0.6; }
+
+        .history-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3rem;
+        }
+
+        .history-time { color: var(--text-secondary); font-size: 0.72rem; }
+
+        .history-changes { display: flex; flex-direction: column; gap: 0.15rem; }
+
+        .history-change { color: var(--text-primary); }
+        .history-key { color: var(--accent-blue); font-weight: 600; }
+
+        .undo-btn, .redo-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .undo-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
+        .redo-btn:hover { border-color: var(--accent-green); color: var(--accent-green); }
 
         @media (max-width: 600px) {
             .summary { flex-direction: column; }
@@ -339,6 +540,28 @@
             document.getElementById('header-version').textContent = config.currentMinecraftVersion;
         }
 
+        function formatRelativeTime(isoString) {
+            if (!isoString) return '--';
+            const diff = Date.now() - new Date(isoString).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins}m ago`;
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function formatSize(mb) {
+            if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+            return `${mb.toFixed(1)} MB`;
+        }
+
+        function switchTab(card, tabName) {
+            card.querySelectorAll('.card-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+            card.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tabName));
+        }
+
         function renderServers(data) {
             const grid = document.getElementById('server-grid');
             const servers = data.servers || [];
@@ -358,6 +581,10 @@
                 return;
             }
 
+            // Store server data globally for edit-properties.js
+            window._serverData = {};
+            servers.forEach(s => { window._serverData[s.name] = s; });
+
             grid.innerHTML = servers.map(s => {
                 const q = s.query;
                 const isOnline = !!q;
@@ -367,21 +594,45 @@
                 const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
 
                 return `
-                <div class="server-card">
+                <div class="server-card" data-server="${escapeHtml(s.name)}">
                     <div class="server-card-header">
                         <h3>${escapeHtml(s.name)}</h3>
-                        <span class="status-badge ${statusClass}">
-                            <span class="status-dot"></span>
-                            ${statusText}
-                        </span>
+                        <div class="card-actions">
+                            <button class="edit-btn" onclick="enterEditMode(this.closest('.server-card'), window._serverData['${escapeHtml(s.name)}'])">Edit</button>
+                            <button class="history-btn" onclick="toggleHistoryPanel(this.closest('.server-card'), '${escapeHtml(s.name)}')">History</button>
+                            <span class="status-badge ${statusClass}">
+                                <span class="status-dot"></span>
+                                ${statusText}
+                            </span>
+                        </div>
                     </div>
-                    <div class="server-detail"><span class="key">Players</span><span style="color:${playersColor};font-weight:600">${players}</span></div>
-                    <div class="server-detail"><span class="key">Version</span><span class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
-                    <div class="server-detail"><span class="key">Gamemode</span><span>${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
-                    <div class="server-detail"><span class="key">Difficulty</span><span>${escapeHtml(s.difficulty)}</span></div>
-                    <div class="server-detail"><span class="key">Port</span><span>${s.serverPort}</span></div>
-                    <div class="server-detail"><span class="key">Port v6</span><span>${s.serverPortV6}</span></div>
-                    ${isOnline ? `<div class="server-detail"><span class="key">World</span><span>${escapeHtml(q.worldName)}</span></div>` : ''}
+                    <div class="card-tabs">
+                        <button class="card-tab active" data-tab="status" onclick="switchTab(this.closest('.server-card'), 'status')">Status</button>
+                        <button class="card-tab" data-tab="world" onclick="switchTab(this.closest('.server-card'), 'world')">World</button>
+                        <button class="card-tab" data-tab="config" onclick="switchTab(this.closest('.server-card'), 'config')">Config</button>
+                    </div>
+                    <div class="tab-panel active" data-tab="status">
+                        <div class="server-detail"><span class="key">Players</span><span style="color:${playersColor};font-weight:600">${players}</span></div>
+                        <div class="server-detail"><span class="key">Version</span><span class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
+                        <div class="server-detail"><span class="key">Gamemode</span><span>${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
+                        <div class="server-detail"><span class="key">Difficulty</span><span>${escapeHtml(s.difficulty)}</span></div>
+                        ${isOnline ? `<div class="server-detail"><span class="key">World</span><span>${escapeHtml(q.worldName)}</span></div>` : ''}
+                    </div>
+                    <div class="tab-panel" data-tab="world">
+                        <div class="server-detail"><span class="key">Level Name</span><span>${escapeHtml(s.levelName)}</span></div>
+                        <div class="server-detail"><span class="key">World Size</span><span>${formatSize(s.worldSizeMB || 0)}</span></div>
+                        <div class="server-detail"><span class="key">Last Save</span><span>${formatRelativeTime(s.lastSave)}</span></div>
+                        <div class="server-detail"><span class="key">View Distance</span><span>${s.viewDistance || '--'} chunks</span></div>
+                        <div class="server-detail"><span class="key">Tick Distance</span><span>${s.tickDistance || '--'} chunks</span></div>
+                    </div>
+                    <div class="tab-panel" data-tab="config">
+                        <div class="server-detail"><span class="key">Port</span><span>${s.serverPort}</span></div>
+                        <div class="server-detail"><span class="key">Port v6</span><span>${s.serverPortV6}</span></div>
+                        <div class="server-detail"><span class="key">Allow Cheats</span><span>${s.allowCheats}</span></div>
+                        <div class="server-detail"><span class="key">Online Mode</span><span>${s.onlineMode}</span></div>
+                        <div class="server-detail"><span class="key">Permission Level</span><span>${escapeHtml(s.defaultPermission)}</span></div>
+                        <div class="server-detail"><span class="key">Allow List</span><span>${s.allowList}</span></div>
+                    </div>
                 </div>
             `}).join('');
         }
@@ -480,5 +731,6 @@
         document.addEventListener('DOMContentLoaded', refresh);
         setInterval(refresh, REFRESH_INTERVAL);
     </script>
+    <script src="/js/edit-properties.js"></script>
 </body>
 </html>

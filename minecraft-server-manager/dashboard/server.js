@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const dgram = require('dgram');
 const { execFileSync } = require('child_process');
+const { parseServerProperties, writeServerProperties } = require('./lib/server-properties');
+const { validatePropertyUpdates } = require('./lib/validation');
+const { readPropertyHistory, appendPropertyHistory, revertPropertyChange, redoPropertyChange } = require('./lib/property-history');
 
 const PORT = parseInt(process.env.DASHBOARD_PORT, 10) || 19100;
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -11,6 +14,12 @@ const LOG_DIR = path.join(PROJECT_ROOT, 'logs');
 const SCRIPT_LOG = path.join(LOG_DIR, 'MinecraftScriptLog.log');
 const UPDATE_HISTORY = path.join(LOG_DIR, 'MinecraftUpdateHistory.json');
 const REQUIRED_SERVER_FILES = ['bedrock_server.exe', 'server.properties', 'permissions.json', 'allowlist.json'];
+
+const MIME_TYPES = {
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json'
+};
 
 // --- Utility Functions ---
 
@@ -55,21 +64,6 @@ function readRecentLogs(count = 50) {
     }
 }
 
-function parseServerProperties(filePath) {
-    const props = {};
-    try {
-        const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/);
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) continue;
-            const eqIndex = trimmed.indexOf('=');
-            if (eqIndex === -1) continue;
-            props[trimmed.substring(0, eqIndex).trim()] = trimmed.substring(eqIndex + 1).trim();
-        }
-    } catch { /* ignore */ }
-    return props;
-}
-
 function getRunningServerPaths() {
     try {
         const psCommand = 'Get-CimInstance Win32_Process -Filter "name=\'bedrock_server.exe\'" | ForEach-Object { $_.ExecutablePath } | Where-Object { $_ }';
@@ -88,6 +82,37 @@ function getRunningServerPaths() {
 function isServerRunning(serverDir, runningPaths) {
     const normalized = path.resolve(serverDir).toLowerCase() + path.sep;
     return runningPaths.some(p => path.resolve(p).toLowerCase().startsWith(normalized));
+}
+
+function getDirSizeBytes(dirPath) {
+    let total = 0;
+    try {
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+                total += getDirSizeBytes(fullPath);
+            } else {
+                try { total += fs.statSync(fullPath).size; } catch { /* skip */ }
+            }
+        }
+    } catch { /* skip */ }
+    return total;
+}
+
+function getWorldStats(serverDir, levelName) {
+    const worldDir = path.join(serverDir, 'worlds', levelName);
+    if (!fs.existsSync(worldDir)) return { sizeMB: 0, lastSave: null };
+
+    const sizeMB = Math.round(getDirSizeBytes(worldDir) / (1024 * 1024) * 100) / 100;
+
+    let lastSave = null;
+    const levelDat = path.join(worldDir, 'level.dat');
+    try {
+        lastSave = fs.statSync(levelDat).mtime.toISOString();
+    } catch { /* ignore */ }
+
+    return { sizeMB, lastSave };
 }
 
 function discoverServers(serverRoot) {
@@ -116,6 +141,9 @@ function discoverServers(serverRoot) {
         // Read properties
         const props = parseServerProperties(path.join(serverDir, 'server.properties'));
 
+        const levelName = props['level-name'] || 'Bedrock level';
+        const worldStats = getWorldStats(serverDir, levelName);
+
         servers.push({
             name: entry.name,
             path: serverDir,
@@ -126,8 +154,17 @@ function discoverServers(serverRoot) {
             serverPort: parseInt(props['server-port'], 10) || 19132,
             serverPortV6: parseInt(props['server-portv6'], 10) || 19133,
             maxPlayers: parseInt(props['max-players'], 10) || 10,
-            levelName: props['level-name'] || 'Unknown',
-            isRunning: isServerRunning(serverDir, runningPaths)
+            levelName,
+            isRunning: isServerRunning(serverDir, runningPaths),
+            allProps: props,
+            worldSizeMB: worldStats.sizeMB,
+            lastSave: worldStats.lastSave,
+            viewDistance: parseInt(props['view-distance'], 10) || 32,
+            tickDistance: parseInt(props['tick-distance'], 10) || 4,
+            allowCheats: props['allow-cheats'] || 'false',
+            onlineMode: props['online-mode'] || 'true',
+            defaultPermission: props['default-player-permission-level'] || 'member',
+            allowList: props['allow-list'] || 'false'
         });
     }
 
@@ -222,6 +259,48 @@ fs.watch(__dirname, { recursive: false }, (_eventType, filename) => {
     }
 });
 
+// --- Request Helpers ---
+
+function parseRequestBody(req) {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', () => {
+            try {
+                resolve(JSON.parse(Buffer.concat(chunks).toString()));
+            } catch (err) {
+                reject(new Error('Invalid JSON body'));
+            }
+        });
+        req.on('error', reject);
+    });
+}
+
+function resolveServerDir(folderName) {
+    const config = readConfig();
+    // Prevent path traversal
+    const safeName = path.basename(folderName);
+    const serverDir = path.join(config.serverRoot, safeName);
+    const hasAllFiles = REQUIRED_SERVER_FILES.every(f =>
+        fs.existsSync(path.join(serverDir, f))
+    );
+    if (!hasAllFiles) return null;
+    return serverDir;
+}
+
+function serveStaticFile(res, filePath) {
+    const ext = path.extname(filePath);
+    const mime = MIME_TYPES[ext] || 'application/octet-stream';
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': `${mime}; charset=utf-8` });
+        res.end(content);
+    } catch {
+        res.writeHead(404);
+        res.end('Not found');
+    }
+}
+
 // --- HTTP Server ---
 
 function sendJson(res, data, status = 200) {
@@ -277,9 +356,98 @@ async function handleRequest(req, res) {
                 sendJson(res, { servers });
                 break;
             }
-            default:
+            default: {
+                // Static file serving for /js/* paths
+                if (url.pathname.startsWith('/js/')) {
+                    const safePath = path.basename(url.pathname);
+                    serveStaticFile(res, path.join(__dirname, 'js', safePath));
+                    break;
+                }
+
+                // Dynamic server API routes: /api/servers/{folderName}/...
+                const serverApiMatch = url.pathname.match(/^\/api\/servers\/([^/]+)\/(.+)$/);
+                if (serverApiMatch) {
+                    const folderName = decodeURIComponent(serverApiMatch[1]);
+                    const action = serverApiMatch[2];
+                    const serverDir = resolveServerDir(folderName);
+
+                    if (!serverDir) {
+                        sendJson(res, { error: `Server not found: ${folderName}` }, 404);
+                        break;
+                    }
+
+                    if (action === 'properties' && req.method === 'POST') {
+                        const body = await parseRequestBody(req);
+                        const { valid, errors } = validatePropertyUpdates(body);
+                        if (!valid) {
+                            sendJson(res, { error: 'Validation failed', errors }, 400);
+                            break;
+                        }
+
+                        // Read current values for history
+                        const propsPath = path.join(serverDir, 'server.properties');
+                        const currentProps = parseServerProperties(propsPath);
+                        const changes = {};
+                        for (const [key, newVal] of Object.entries(body)) {
+                            const oldVal = currentProps[key] || '';
+                            if (String(newVal) !== String(oldVal)) {
+                                changes[key] = { old: oldVal, new: String(newVal) };
+                            }
+                        }
+
+                        if (Object.keys(changes).length === 0) {
+                            sendJson(res, { message: 'No changes detected' });
+                            break;
+                        }
+
+                        // Convert all values to strings for writing
+                        const updates = {};
+                        for (const [key, val] of Object.entries(body)) {
+                            updates[key] = String(val);
+                        }
+
+                        writeServerProperties(propsPath, updates);
+                        appendPropertyHistory(serverDir, changes);
+                        sendJson(res, { message: 'Properties updated', changes });
+                        break;
+                    }
+
+                    if (action === 'history' && req.method === 'GET') {
+                        sendJson(res, readPropertyHistory(serverDir));
+                        break;
+                    }
+
+                    if (action === 'history/revert' && req.method === 'POST') {
+                        const body = await parseRequestBody(req);
+                        const index = parseInt(body.index, 10);
+                        if (isNaN(index)) {
+                            sendJson(res, { error: 'Missing or invalid index' }, 400);
+                            break;
+                        }
+                        revertPropertyChange(serverDir, index);
+                        sendJson(res, { message: 'Change reverted' });
+                        break;
+                    }
+
+                    if (action === 'history/redo' && req.method === 'POST') {
+                        const body = await parseRequestBody(req);
+                        const index = parseInt(body.index, 10);
+                        if (isNaN(index)) {
+                            sendJson(res, { error: 'Missing or invalid index' }, 400);
+                            break;
+                        }
+                        redoPropertyChange(serverDir, index);
+                        sendJson(res, { message: 'Change re-applied' });
+                        break;
+                    }
+
+                    sendJson(res, { error: 'Unknown action' }, 404);
+                    break;
+                }
+
                 res.writeHead(404);
                 res.end('Not found');
+            }
         }
     } catch (err) {
         console.error(`Error handling ${url.pathname}:`, err.message);
