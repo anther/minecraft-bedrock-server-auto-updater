@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const dgram = require('dgram');
 const { execFileSync } = require('child_process');
 
 const PORT = parseInt(process.env.DASHBOARD_PORT, 10) || 19100;
@@ -133,6 +134,83 @@ function discoverServers(serverRoot) {
     return servers;
 }
 
+// --- Bedrock Server Query (RakNet UDP Ping) ---
+
+const RAKNET_MAGIC = Buffer.from('00ffff00fefefefefdfdfdfd12345678', 'hex');
+
+function queryBedrockServer(address, port, timeoutMs = 3000) {
+    return new Promise((resolve) => {
+        const socket = dgram.createSocket('udp4');
+        let resolved = false;
+
+        const timer = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                socket.close();
+                resolve(null);
+            }
+        }, timeoutMs);
+
+        socket.on('message', (msg) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timer);
+            socket.close();
+
+            if (msg[0] !== 0x1c || msg.length < 35) {
+                resolve(null);
+                return;
+            }
+
+            const strLen = (msg[33] << 8) + msg[34];
+            const serverInfo = msg.toString('utf8', 35, 35 + strLen);
+            const fields = serverInfo.split(';');
+
+            resolve({
+                edition: fields[0] || '',
+                motd: fields[1] || '',
+                protocol: parseInt(fields[2], 10) || 0,
+                version: fields[3] || '',
+                onlinePlayers: parseInt(fields[4], 10) || 0,
+                maxPlayers: parseInt(fields[5], 10) || 0,
+                worldName: fields[7] || '',
+                gamemode: fields[8] || ''
+            });
+        });
+
+        socket.on('error', () => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                socket.close();
+                resolve(null);
+            }
+        });
+
+        // Build Unconnected Ping packet
+        const ping = Buffer.alloc(33);
+        ping[0] = 0x01;
+        const now = BigInt(Date.now());
+        ping.writeBigInt64BE(now, 1);
+        RAKNET_MAGIC.copy(ping, 9);
+        ping.writeBigInt64BE(BigInt(2), 25); // client GUID
+        socket.send(ping, port, address);
+    });
+}
+
+async function queryAllServers(servers) {
+    const queries = servers.map(s =>
+        queryBedrockServer('127.0.0.1', s.serverPort)
+            .then(result => ({ name: s.name, query: result }))
+    );
+    const results = await Promise.all(queries);
+    const map = {};
+    for (const r of results) {
+        map[r.name] = r.query;
+    }
+    return map;
+}
+
 // --- Live Reload (SSE) ---
 
 const liveReloadClients = new Set();
@@ -155,7 +233,7 @@ function sendJson(res, data, status = 200) {
     res.end(body);
 }
 
-function handleRequest(req, res) {
+async function handleRequest(req, res) {
     const url = new URL(req.url, `http://localhost:${PORT}`);
 
     try {
@@ -180,7 +258,12 @@ function handleRequest(req, res) {
             }
             case '/api/servers': {
                 const config = readConfig();
-                sendJson(res, { servers: discoverServers(config.serverRoot) });
+                const servers = discoverServers(config.serverRoot);
+                const queryMap = await queryAllServers(servers);
+                for (const s of servers) {
+                    s.query = queryMap[s.name] || null;
+                }
+                sendJson(res, { servers });
                 break;
             }
             default:

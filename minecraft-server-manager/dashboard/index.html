@@ -280,6 +280,10 @@
                 <div class="value" id="summary-online">--</div>
             </div>
             <div class="summary-card">
+                <div class="label">Players Online</div>
+                <div class="value" id="summary-players">--</div>
+            </div>
+            <div class="summary-card">
                 <div class="label">Total Updates</div>
                 <div class="value" id="summary-updates">--</div>
             </div>
@@ -340,33 +344,46 @@
             const servers = data.servers || [];
 
             document.getElementById('summary-servers').textContent = servers.length;
-            const onlineCount = servers.filter(s => s.isRunning).length;
+            const onlineCount = servers.filter(s => !!s.query).length;
+            const totalPlayers = servers.reduce((sum, s) => sum + (s.query ? s.query.onlinePlayers : 0), 0);
             const el = document.getElementById('summary-online');
             el.textContent = `${onlineCount} / ${servers.length}`;
             el.style.color = onlineCount > 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+            const playersEl = document.getElementById('summary-players');
+            playersEl.textContent = totalPlayers;
+            playersEl.style.color = totalPlayers > 0 ? 'var(--accent-green)' : '';
 
             if (!servers.length) {
                 grid.innerHTML = '<div class="empty-state">No servers found</div>';
                 return;
             }
 
-            grid.innerHTML = servers.map(s => `
+            grid.innerHTML = servers.map(s => {
+                const q = s.query;
+                const isOnline = !!q;
+                const statusClass = isOnline ? 'online' : 'offline';
+                const statusText = isOnline ? 'Online' : 'Offline';
+                const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
+                const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
+
+                return `
                 <div class="server-card">
                     <div class="server-card-header">
                         <h3>${escapeHtml(s.name)}</h3>
-                        <span class="status-badge ${s.isRunning ? 'online' : 'offline'}">
+                        <span class="status-badge ${statusClass}">
                             <span class="status-dot"></span>
-                            ${s.isRunning ? 'Online' : 'Offline'}
+                            ${statusText}
                         </span>
                     </div>
-                    <div class="server-detail"><span class="key">Version</span><span class="version-tag">${escapeHtml(s.version)}</span></div>
-                    <div class="server-detail"><span class="key">Gamemode</span><span>${escapeHtml(s.gamemode)}</span></div>
+                    <div class="server-detail"><span class="key">Players</span><span style="color:${playersColor};font-weight:600">${players}</span></div>
+                    <div class="server-detail"><span class="key">Version</span><span class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
+                    <div class="server-detail"><span class="key">Gamemode</span><span>${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
                     <div class="server-detail"><span class="key">Difficulty</span><span>${escapeHtml(s.difficulty)}</span></div>
                     <div class="server-detail"><span class="key">Port</span><span>${s.serverPort}</span></div>
                     <div class="server-detail"><span class="key">Port v6</span><span>${s.serverPortV6}</span></div>
-                    <div class="server-detail"><span class="key">Max Players</span><span>${s.maxPlayers}</span></div>
+                    ${isOnline ? `<div class="server-detail"><span class="key">World</span><span>${escapeHtml(q.worldName)}</span></div>` : ''}
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function renderHistory(history) {
