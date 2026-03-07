@@ -215,7 +215,7 @@ async function queryAllServers(servers) {
 
 const liveReloadClients = new Set();
 
-fs.watch(__dirname, { recursive: false }, (eventType, filename) => {
+fs.watch(__dirname, { recursive: false }, (_eventType, filename) => {
     if (!filename || filename === 'server.js') return;
     for (const res of liveReloadClients) {
         res.write(`data: ${filename}\n\n`);
@@ -255,6 +255,17 @@ async function handleRequest(req, res) {
             case '/api/logs': {
                 sendJson(res, readRecentLogs(50));
                 break;
+            }
+            case '/api/live-reload': {
+                res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive'
+                });
+                res.write('data: connected\n\n');
+                liveReloadClients.add(res);
+                req.on('close', () => liveReloadClients.delete(res));
+                return;
             }
             case '/api/servers': {
                 const config = readConfig();

@@ -471,6 +471,12 @@
             }
         }
 
+        // Live reload via SSE
+        const sse = new EventSource('/api/live-reload');
+        sse.onmessage = (e) => {
+            if (e.data !== 'connected') location.reload();
+        };
+
         document.addEventListener('DOMContentLoaded', refresh);
         setInterval(refresh, REFRESH_INTERVAL);
     </script>
