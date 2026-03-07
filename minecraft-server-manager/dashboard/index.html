@@ -560,10 +560,7 @@
             card.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tabName));
         }
 
-        function renderServers(data) {
-            const grid = document.getElementById('server-grid');
-            const servers = data.servers || [];
-
+        function updateServerSummary(servers) {
             document.getElementById('summary-servers').textContent = servers.length;
             const onlineCount = servers.filter(s => !!s.query).length;
             const totalPlayers = servers.reduce((sum, s) => sum + (s.query ? s.query.onlinePlayers : 0), 0);
@@ -573,25 +570,18 @@
             const playersEl = document.getElementById('summary-players');
             playersEl.textContent = totalPlayers;
             playersEl.style.color = totalPlayers > 0 ? 'var(--accent-green)' : '';
+        }
 
-            if (!servers.length) {
-                grid.innerHTML = '<div class="empty-state">No servers found</div>';
-                return;
-            }
+        function buildServerCardHtml(s) {
+            const q = s.query;
+            const isOnline = !!q;
+            const statusClass = isOnline ? 'online' : 'offline';
+            const statusText = isOnline ? 'Online' : 'Offline';
+            const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
+            const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
+            const worldRowDisplay = isOnline ? '' : ' style="display:none"';
 
-            // Store server data globally for edit-properties.js
-            window._serverData = {};
-            servers.forEach(s => { window._serverData[s.name] = s; });
-
-            grid.innerHTML = servers.map(s => {
-                const q = s.query;
-                const isOnline = !!q;
-                const statusClass = isOnline ? 'online' : 'offline';
-                const statusText = isOnline ? 'Online' : 'Offline';
-                const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
-                const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
-
-                return `
+            return `
                 <div class="server-card" data-server="${escapeHtml(s.name)}">
                     <div class="server-card-header">
                         <h3>${escapeHtml(s.name)}</h3>
@@ -610,35 +600,155 @@
                         <button class="card-tab" data-tab="config" onclick="switchTab(this.closest('.server-card'), 'config')">Config</button>
                     </div>
                     <div class="tab-panel active" data-tab="status">
-                        <div class="server-detail"><span class="key">Players</span><span style="color:${playersColor};font-weight:600">${players}</span></div>
-                        <div class="server-detail"><span class="key">Version</span><span class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
-                        <div class="server-detail"><span class="key">Gamemode</span><span>${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
-                        <div class="server-detail"><span class="key">Difficulty</span><span>${escapeHtml(s.difficulty)}</span></div>
-                        ${isOnline ? `<div class="server-detail"><span class="key">World</span><span>${escapeHtml(q.worldName)}</span></div>` : ''}
+                        <div class="server-detail"><span class="key">Players</span><span data-field="players" style="color:${playersColor};font-weight:600">${players}</span></div>
+                        <div class="server-detail"><span class="key">Version</span><span data-field="version" class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
+                        <div class="server-detail"><span class="key">Gamemode</span><span data-field="gamemode">${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
+                        <div class="server-detail"><span class="key">Difficulty</span><span data-field="difficulty">${escapeHtml(s.difficulty)}</span></div>
+                        <div class="server-detail" data-field-row="world-name"${worldRowDisplay}><span class="key">World</span><span data-field="world-name">${isOnline ? escapeHtml(q.worldName) : ''}</span></div>
                     </div>
                     <div class="tab-panel" data-tab="world">
-                        <div class="server-detail"><span class="key">Level Name</span><span>${escapeHtml(s.levelName)}</span></div>
-                        <div class="server-detail"><span class="key">World Size</span><span>${formatSize(s.worldSizeMB || 0)}</span></div>
-                        <div class="server-detail"><span class="key">Last Save</span><span>${formatRelativeTime(s.lastSave)}</span></div>
-                        <div class="server-detail"><span class="key">View Distance</span><span>${s.viewDistance || '--'} chunks</span></div>
-                        <div class="server-detail"><span class="key">Tick Distance</span><span>${s.tickDistance || '--'} chunks</span></div>
+                        <div class="server-detail"><span class="key">Level Name</span><span data-field="level-name">${escapeHtml(s.levelName)}</span></div>
+                        <div class="server-detail"><span class="key">World Size</span><span data-field="world-size">${formatSize(s.worldSizeMB || 0)}</span></div>
+                        <div class="server-detail"><span class="key">Last Save</span><span data-field="last-save">${formatRelativeTime(s.lastSave)}</span></div>
+                        <div class="server-detail"><span class="key">View Distance</span><span data-field="view-distance">${s.viewDistance || '--'} chunks</span></div>
+                        <div class="server-detail"><span class="key">Tick Distance</span><span data-field="tick-distance">${s.tickDistance || '--'} chunks</span></div>
                     </div>
                     <div class="tab-panel" data-tab="config">
-                        <div class="server-detail"><span class="key">Port</span><span>${s.serverPort}</span></div>
-                        <div class="server-detail"><span class="key">Port v6</span><span>${s.serverPortV6}</span></div>
-                        <div class="server-detail"><span class="key">Allow Cheats</span><span>${s.allowCheats}</span></div>
-                        <div class="server-detail"><span class="key">Online Mode</span><span>${s.onlineMode}</span></div>
-                        <div class="server-detail"><span class="key">Permission Level</span><span>${escapeHtml(s.defaultPermission)}</span></div>
-                        <div class="server-detail"><span class="key">Allow List</span><span>${s.allowList}</span></div>
+                        <div class="server-detail"><span class="key">Port</span><span data-field="port">${s.serverPort}</span></div>
+                        <div class="server-detail"><span class="key">Port v6</span><span data-field="port-v6">${s.serverPortV6}</span></div>
+                        <div class="server-detail"><span class="key">Allow Cheats</span><span data-field="allow-cheats">${s.allowCheats}</span></div>
+                        <div class="server-detail"><span class="key">Online Mode</span><span data-field="online-mode">${s.onlineMode}</span></div>
+                        <div class="server-detail"><span class="key">Permission Level</span><span data-field="permission">${escapeHtml(s.defaultPermission)}</span></div>
+                        <div class="server-detail"><span class="key">Allow List</span><span data-field="allow-list">${s.allowList}</span></div>
                     </div>
                 </div>
-            `}).join('');
+            `;
+        }
+
+        function updateSingleCard(card, s) {
+            // Skip cards in edit mode — preserve the form
+            if (card.querySelector('.edit-form')) return;
+
+            const q = s.query;
+            const isOnline = !!q;
+
+            // Update status badge
+            const badge = card.querySelector('.status-badge');
+            if (badge) {
+                const newClass = isOnline ? 'online' : 'offline';
+                if (!badge.classList.contains(newClass)) {
+                    badge.className = `status-badge ${newClass}`;
+                    badge.innerHTML = `<span class="status-dot"></span>${isOnline ? 'Online' : 'Offline'}`;
+                }
+            }
+
+            // Helper to update a data-field span
+            function setField(name, text, styles) {
+                const el = card.querySelector(`[data-field="${name}"]`);
+                if (!el) return;
+                if (el.textContent !== String(text)) el.textContent = text;
+                if (styles) {
+                    for (const [k, v] of Object.entries(styles)) el.style[k] = v;
+                }
+            }
+
+            // Status tab
+            const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
+            const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
+            setField('players', players, { color: playersColor, fontWeight: '600' });
+            setField('version', isOnline ? q.version : s.version);
+            setField('gamemode', isOnline ? q.gamemode : s.gamemode);
+            setField('difficulty', s.difficulty);
+
+            // World name row — toggle visibility
+            const worldRow = card.querySelector('[data-field-row="world-name"]');
+            if (worldRow) {
+                worldRow.style.display = isOnline ? '' : 'none';
+                if (isOnline) setField('world-name', q.worldName);
+            }
+
+            // World tab
+            setField('level-name', s.levelName);
+            setField('world-size', formatSize(s.worldSizeMB || 0));
+            setField('last-save', formatRelativeTime(s.lastSave));
+            setField('view-distance', `${s.viewDistance || '--'} chunks`);
+            setField('tick-distance', `${s.tickDistance || '--'} chunks`);
+
+            // Config tab
+            setField('port', s.serverPort);
+            setField('port-v6', s.serverPortV6);
+            setField('allow-cheats', s.allowCheats);
+            setField('online-mode', s.onlineMode);
+            setField('permission', s.defaultPermission);
+            setField('allow-list', s.allowList);
+        }
+
+        function updateServerCards(servers, grid) {
+            const incoming = new Map(servers.map(s => [s.name, s]));
+            const existingCards = grid.querySelectorAll('.server-card[data-server]');
+            const existingNames = new Set();
+
+            // Update existing cards, remove stale ones
+            existingCards.forEach(card => {
+                const name = card.dataset.server;
+                if (incoming.has(name)) {
+                    existingNames.add(name);
+                    updateSingleCard(card, incoming.get(name));
+                } else {
+                    card.remove();
+                }
+            });
+
+            // Add new cards
+            for (const s of servers) {
+                if (!existingNames.has(s.name)) {
+                    grid.insertAdjacentHTML('beforeend', buildServerCardHtml(s));
+                }
+            }
+
+            // Fix ordering — appendChild moves without destroying
+            const desiredOrder = servers.map(s => s.name);
+            const currentOrder = Array.from(grid.querySelectorAll('.server-card[data-server]')).map(c => c.dataset.server);
+            if (JSON.stringify(desiredOrder) !== JSON.stringify(currentOrder)) {
+                for (const name of desiredOrder) {
+                    const card = grid.querySelector(`.server-card[data-server="${CSS.escape(name)}"]`);
+                    if (card) grid.appendChild(card);
+                }
+            }
+        }
+
+        function renderServers(data, forceRender = false) {
+            const grid = document.getElementById('server-grid');
+            const servers = data.servers || [];
+
+            updateServerSummary(servers);
+
+            // Always update global data for edit-properties.js
+            window._serverData = {};
+            servers.forEach(s => { window._serverData[s.name] = s; });
+
+            if (!servers.length) {
+                grid.innerHTML = '<div class="empty-state">No servers found</div>';
+                return;
+            }
+
+            // Full rebuild on init/forced, or when grid has no cards yet
+            if (forceRender || !grid.querySelector('.server-card')) {
+                grid.innerHTML = servers.map(s => buildServerCardHtml(s)).join('');
+            } else {
+                updateServerCards(servers, grid);
+            }
         }
 
         function renderHistory(history) {
-            const container = document.getElementById('history-container');
             const totalUpdates = history.reduce((sum, h) => sum + h.TimesUpdated, 0);
             document.getElementById('summary-updates').textContent = totalUpdates;
+
+            const json = JSON.stringify(history);
+            if (json === _lastHistoryJson) return;
+            _lastHistoryJson = json;
+
+            const container = document.getElementById('history-container');
 
             if (!history.length) {
                 container.innerHTML = '<div class="empty-state">No update history</div>';
@@ -667,15 +777,30 @@
             `;
         }
 
-        function renderLogs(data) {
+        function renderLogs(data, forceRender = false) {
             const container = document.getElementById('log-container');
             const meta = document.getElementById('log-meta');
 
             if (!data.lines.length) {
+                _lastLogsJson = '';
                 container.innerHTML = '<div class="empty-state">No logs available</div>';
                 meta.textContent = '';
                 return;
             }
+
+            const json = JSON.stringify(data);
+            if (json === _lastLogsJson) return;
+
+            const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+
+            // If user scrolled up and this is a periodic update, don't replace the DOM
+            if (!wasAtBottom && !forceRender && _lastLogsJson !== '') {
+                _lastLogsJson = json;
+                meta.textContent = `Showing last ${data.lines.length} of ${data.totalLines} log lines`;
+                return;
+            }
+
+            _lastLogsJson = json;
 
             container.innerHTML = data.lines.map(line => {
                 const match = line.match(/^(\[.+?\])\s(.+)$/);
@@ -691,14 +816,19 @@
 
             meta.textContent = `Showing last ${data.lines.length} of ${data.totalLines} log lines`;
 
-            // Scroll to bottom
-            container.scrollTop = container.scrollHeight;
+            if (wasAtBottom || forceRender) {
+                container.scrollTop = container.scrollHeight;
+            }
         }
 
         function updateTimestamp() {
             document.getElementById('header-refresh').textContent =
                 new Date().toLocaleTimeString();
         }
+
+        // --- Change detection caches ---
+        let _lastHistoryJson = '';
+        let _lastLogsJson = '';
 
         // --- WebSocket Connection ---
 
@@ -720,12 +850,11 @@
                     const msg = JSON.parse(event.data);
                     switch (msg.type) {
                         case 'init':
-                        case 'update':
                             clearError();
                             renderConfig(msg.config);
-                            renderServers(msg.servers);
+                            renderServers(msg.servers, true);
                             renderHistory(msg.history);
-                            renderLogs(msg.logs);
+                            renderLogs(msg.logs, true);
                             updateTimestamp();
                             if (pendingRefresh) {
                                 const resolve = pendingRefresh;
@@ -733,6 +862,22 @@
                                 resolve();
                             }
                             break;
+                        case 'update': {
+                            clearError();
+                            const forceRender = !!window._forceRender;
+                            window._forceRender = false;
+                            renderConfig(msg.config);
+                            renderServers(msg.servers, forceRender);
+                            renderHistory(msg.history);
+                            renderLogs(msg.logs, forceRender);
+                            updateTimestamp();
+                            if (pendingRefresh) {
+                                const resolve = pendingRefresh;
+                                pendingRefresh = null;
+                                resolve();
+                            }
+                            break;
+                        }
                         case 'live-reload':
                             location.reload();
                             break;
@@ -764,6 +909,7 @@
         async function refresh() {
             return new Promise((resolve) => {
                 pendingRefresh = resolve;
+                window._forceRender = true;
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: 'request-refresh' }));
                 } else {
