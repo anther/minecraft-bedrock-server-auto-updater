@@ -604,6 +604,8 @@
                         <div class="server-detail"><span class="key">Version</span><span data-field="version" class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
                         <div class="server-detail"><span class="key">Gamemode</span><span data-field="gamemode">${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
                         <div class="server-detail"><span class="key">Difficulty</span><span data-field="difficulty">${escapeHtml(s.difficulty)}</span></div>
+                        <div class="server-detail"><span class="key">Port</span><span data-field="status-port">${s.serverPort}</span></div>
+                        <div class="server-detail"><span class="key">Port v6</span><span data-field="status-port-v6">${s.serverPortV6}</span></div>
                         <div class="server-detail" data-field-row="world-name"${worldRowDisplay}><span class="key">World</span><span data-field="world-name">${isOnline ? escapeHtml(q.worldName) : ''}</span></div>
                     </div>
                     <div class="tab-panel" data-tab="world">
@@ -659,6 +661,8 @@
             setField('version', isOnline ? q.version : s.version);
             setField('gamemode', isOnline ? q.gamemode : s.gamemode);
             setField('difficulty', s.difficulty);
+            setField('status-port', s.serverPort);
+            setField('status-port-v6', s.serverPortV6);
 
             // World name row — toggle visibility
             const worldRow = card.querySelector('[data-field-row="world-name"]');
