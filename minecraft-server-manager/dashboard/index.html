@@ -105,6 +105,26 @@
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 1rem 1.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .server-card > .banner-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.18;
+        }
+
+        .server-card > .banner-fade {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 30%, var(--bg-secondary) 100%);
+        }
+
+        .server-card > *:not(.banner-bg):not(.banner-fade) {
+            position: relative;
         }
 
         .server-card-header {
@@ -581,8 +601,11 @@
             const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
             const worldRowDisplay = isOnline ? '' : ' style="display:none"';
 
+            const bannerUrl = s.bannerExt ? `/api/servers/${encodeURIComponent(s.name)}/banner` : '';
+
             return `
                 <div class="server-card" data-server="${escapeHtml(s.name)}">
+                    ${bannerUrl ? `<div class="banner-bg" style="background-image:url('${bannerUrl}')"></div><div class="banner-fade"></div>` : ''}
                     <div class="server-card-header">
                         <h3>${escapeHtml(s.name)}</h3>
                         <div class="card-actions">

@@ -145,6 +145,15 @@ function discoverServers(serverRoot) {
         const levelName = props['level-name'] || 'Bedrock level';
         const worldStats = getWorldStats(serverDir, levelName);
 
+        // Check for banner image
+        let bannerExt = null;
+        for (const ext of ['.png', '.jpg']) {
+            if (fs.existsSync(path.join(serverDir, `banner${ext}`))) {
+                bannerExt = ext;
+                break;
+            }
+        }
+
         servers.push({
             name: entry.name,
             path: serverDir,
@@ -165,7 +174,8 @@ function discoverServers(serverRoot) {
             allowCheats: props['allow-cheats'] || 'false',
             onlineMode: props['online-mode'] || 'true',
             defaultPermission: props['default-player-permission-level'] || 'member',
-            allowList: props['allow-list'] || 'false'
+            allowList: props['allow-list'] || 'false',
+            bannerExt
         });
     }
 
@@ -372,6 +382,24 @@ async function handleRequest(req, res) {
 
                     if (!serverDir) {
                         sendJson(res, { error: `Server not found: ${folderName}` }, 404);
+                        break;
+                    }
+
+                    if (action === 'banner' && req.method === 'GET') {
+                        let bannerPath = null;
+                        for (const ext of ['.png', '.jpg']) {
+                            const candidate = path.join(serverDir, `banner${ext}`);
+                            if (fs.existsSync(candidate)) { bannerPath = candidate; break; }
+                        }
+                        if (!bannerPath) {
+                            res.writeHead(404);
+                            res.end('No banner');
+                            break;
+                        }
+                        const mime = bannerPath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+                        const img = fs.readFileSync(bannerPath);
+                        res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=300' });
+                        res.end(img);
                         break;
                     }
 
