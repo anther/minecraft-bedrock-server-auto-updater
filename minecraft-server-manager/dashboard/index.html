@@ -179,37 +179,36 @@
 
         .server-detail .key { color: var(--text-secondary); }
 
-        /* Card tabs */
-        .card-tabs {
-            display: flex;
-            gap: 0;
-            margin-bottom: 0.6rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .card-tab {
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 0.72rem;
+        .bool-badge, .enum-badge {
+            display: inline-block;
+            font-size: 0.68rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            padding: 0.35rem 0.65rem;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.15s;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
         }
 
-        .card-tab:hover { color: var(--text-primary); }
+        .bool-badge.is-true { background: rgba(78, 204, 163, 0.15); color: var(--accent-green); }
+        .bool-badge.is-false { background: rgba(231, 76, 60, 0.15); color: var(--accent-red); }
 
-        .card-tab.active {
-            color: var(--accent-blue);
-            border-bottom-color: var(--accent-blue);
+        .enum-badge.enum-survival { background: rgba(78, 204, 163, 0.15); color: var(--accent-green); }
+        .enum-badge.enum-creative { background: rgba(240, 165, 0, 0.15); color: var(--accent-gold); }
+        .enum-badge.enum-adventure { background: rgba(0, 180, 216, 0.15); color: var(--accent-blue); }
+
+        .enum-badge.enum-peaceful { background: rgba(78, 204, 163, 0.15); color: var(--accent-green); }
+        .enum-badge.enum-easy { background: rgba(0, 180, 216, 0.15); color: var(--accent-blue); }
+        .enum-badge.enum-normal { background: rgba(240, 165, 0, 0.15); color: var(--accent-gold); }
+        .enum-badge.enum-hard { background: rgba(231, 76, 60, 0.15); color: var(--accent-red); }
+
+        .enum-badge.enum-visitor { background: rgba(231, 76, 60, 0.15); color: var(--accent-red); }
+        .enum-badge.enum-member { background: rgba(0, 180, 216, 0.15); color: var(--accent-blue); }
+        .enum-badge.enum-operator { background: rgba(240, 165, 0, 0.15); color: var(--accent-gold); }
+
+        .server-card-details {
+            border-top: 1px solid var(--border);
+            padding-top: 0.4rem;
         }
-
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
 
         /* Update history table */
         .history-section { margin-bottom: 1.5rem; }
@@ -553,6 +552,17 @@
             return d.innerHTML;
         }
 
+        function boolBadge(value) {
+            const on = String(value).toLowerCase() === 'true';
+            return `<span class="bool-badge ${on ? 'is-true' : 'is-false'}">${on ? 'ON' : 'OFF'}</span>`;
+        }
+
+        function enumBadge(value) {
+            const v = String(value).toLowerCase();
+            const label = v.charAt(0).toUpperCase() + v.slice(1);
+            return `<span class="enum-badge enum-${escapeHtml(v)}">${escapeHtml(label)}</span>`;
+        }
+
         function renderConfig(config) {
             document.getElementById('summary-version').textContent = config.currentMinecraftVersion;
             document.getElementById('header-version').textContent = config.currentMinecraftVersion;
@@ -575,10 +585,6 @@
             return `${mb.toFixed(1)} MB`;
         }
 
-        function switchTab(card, tabName) {
-            card.querySelectorAll('.card-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
-            card.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tabName));
-        }
 
         function updateServerSummary(servers) {
             document.getElementById('summary-servers').textContent = servers.length;
@@ -599,7 +605,6 @@
             const statusText = isOnline ? 'Online' : 'Offline';
             const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
             const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
-            const worldRowDisplay = isOnline ? '' : ' style="display:none"';
 
             const bannerUrl = s.bannerExt ? `/api/servers/${encodeURIComponent(s.name)}/banner` : '';
 
@@ -617,34 +622,22 @@
                             </span>
                         </div>
                     </div>
-                    <div class="card-tabs">
-                        <button class="card-tab active" data-tab="status" onclick="switchTab(this.closest('.server-card'), 'status')">Status</button>
-                        <button class="card-tab" data-tab="world" onclick="switchTab(this.closest('.server-card'), 'world')">World</button>
-                        <button class="card-tab" data-tab="config" onclick="switchTab(this.closest('.server-card'), 'config')">Config</button>
-                    </div>
-                    <div class="tab-panel active" data-tab="status">
+                    <div class="server-card-details">
                         <div class="server-detail"><span class="key">Players</span><span data-field="players" style="color:${playersColor};font-weight:600">${players}</span></div>
                         <div class="server-detail"><span class="key">Version</span><span data-field="version" class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
-                        <div class="server-detail"><span class="key">Gamemode</span><span data-field="gamemode">${escapeHtml(isOnline ? q.gamemode : s.gamemode)}</span></div>
-                        <div class="server-detail"><span class="key">Difficulty</span><span data-field="difficulty">${escapeHtml(s.difficulty)}</span></div>
-                        <div class="server-detail"><span class="key">Port</span><span data-field="status-port">${s.serverPort}</span></div>
-                        <div class="server-detail"><span class="key">Port v6</span><span data-field="status-port-v6">${s.serverPortV6}</span></div>
-                        <div class="server-detail" data-field-row="world-name"${worldRowDisplay}><span class="key">World</span><span data-field="world-name">${isOnline ? escapeHtml(q.worldName) : ''}</span></div>
-                    </div>
-                    <div class="tab-panel" data-tab="world">
+                        <div class="server-detail"><span class="key">Gamemode</span><span data-field="gamemode">${enumBadge(isOnline ? q.gamemode : s.gamemode)}</span></div>
+                        <div class="server-detail"><span class="key">Difficulty</span><span data-field="difficulty">${enumBadge(s.difficulty)}</span></div>
+                        <div class="server-detail"><span class="key">Allow Cheats</span><span data-field="allow-cheats">${boolBadge(s.allowCheats)}</span></div>
+                        <div class="server-detail"><span class="key">Port</span><span data-field="port">${s.serverPort}</span></div>
+                        <div class="server-detail"><span class="key">Port v6</span><span data-field="port-v6">${s.serverPortV6}</span></div>
                         <div class="server-detail"><span class="key">Level Name</span><span data-field="level-name">${escapeHtml(s.levelName)}</span></div>
                         <div class="server-detail"><span class="key">World Size</span><span data-field="world-size">${formatSize(s.worldSizeMB || 0)}</span></div>
                         <div class="server-detail"><span class="key">Last Save</span><span data-field="last-save">${formatRelativeTime(s.lastSave)}</span></div>
                         <div class="server-detail"><span class="key">View Distance</span><span data-field="view-distance">${s.viewDistance || '--'} chunks</span></div>
                         <div class="server-detail"><span class="key">Tick Distance</span><span data-field="tick-distance">${s.tickDistance || '--'} chunks</span></div>
-                    </div>
-                    <div class="tab-panel" data-tab="config">
-                        <div class="server-detail"><span class="key">Port</span><span data-field="port">${s.serverPort}</span></div>
-                        <div class="server-detail"><span class="key">Port v6</span><span data-field="port-v6">${s.serverPortV6}</span></div>
-                        <div class="server-detail"><span class="key">Allow Cheats</span><span data-field="allow-cheats">${s.allowCheats}</span></div>
-                        <div class="server-detail"><span class="key">Online Mode</span><span data-field="online-mode">${s.onlineMode}</span></div>
-                        <div class="server-detail"><span class="key">Permission Level</span><span data-field="permission">${escapeHtml(s.defaultPermission)}</span></div>
-                        <div class="server-detail"><span class="key">Allow List</span><span data-field="allow-list">${s.allowList}</span></div>
+                        <div class="server-detail"><span class="key">Online Mode</span><span data-field="online-mode">${boolBadge(s.onlineMode)}</span></div>
+                        <div class="server-detail"><span class="key">Permission Level</span><span data-field="permission">${enumBadge(s.defaultPermission)}</span></div>
+                        <div class="server-detail"><span class="key">Allow List</span><span data-field="allow-list">${boolBadge(s.allowList)}</span></div>
                     </div>
                 </div>
             `;
@@ -667,7 +660,6 @@
                 }
             }
 
-            // Helper to update a data-field span
             function setField(name, text, styles) {
                 const el = card.querySelector(`[data-field="${name}"]`);
                 if (!el) return;
@@ -677,37 +669,29 @@
                 }
             }
 
-            // Status tab
+            function setBadgeField(name, html) {
+                const el = card.querySelector(`[data-field="${name}"]`);
+                if (!el) return;
+                if (el.innerHTML !== html) el.innerHTML = html;
+            }
+
             const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
             const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
             setField('players', players, { color: playersColor, fontWeight: '600' });
             setField('version', isOnline ? q.version : s.version);
-            setField('gamemode', isOnline ? q.gamemode : s.gamemode);
-            setField('difficulty', s.difficulty);
-            setField('status-port', s.serverPort);
-            setField('status-port-v6', s.serverPortV6);
-
-            // World name row — toggle visibility
-            const worldRow = card.querySelector('[data-field-row="world-name"]');
-            if (worldRow) {
-                worldRow.style.display = isOnline ? '' : 'none';
-                if (isOnline) setField('world-name', q.worldName);
-            }
-
-            // World tab
+            setBadgeField('gamemode', enumBadge(isOnline ? q.gamemode : s.gamemode));
+            setBadgeField('difficulty', enumBadge(s.difficulty));
+            setBadgeField('allow-cheats', boolBadge(s.allowCheats));
+            setField('port', s.serverPort);
+            setField('port-v6', s.serverPortV6);
             setField('level-name', s.levelName);
             setField('world-size', formatSize(s.worldSizeMB || 0));
             setField('last-save', formatRelativeTime(s.lastSave));
             setField('view-distance', `${s.viewDistance || '--'} chunks`);
             setField('tick-distance', `${s.tickDistance || '--'} chunks`);
-
-            // Config tab
-            setField('port', s.serverPort);
-            setField('port-v6', s.serverPortV6);
-            setField('allow-cheats', s.allowCheats);
-            setField('online-mode', s.onlineMode);
-            setField('permission', s.defaultPermission);
-            setField('allow-list', s.allowList);
+            setBadgeField('online-mode', boolBadge(s.onlineMode));
+            setBadgeField('permission', enumBadge(s.defaultPermission));
+            setBadgeField('allow-list', boolBadge(s.allowList));
         }
 
         function updateServerCards(servers, grid) {
