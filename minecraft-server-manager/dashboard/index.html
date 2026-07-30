@@ -390,6 +390,96 @@
         .restart-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
         .restart-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        /* Console toggle (second action row) + panel */
+        .card-console-row { margin-bottom: 0.75rem; }
+
+        .console-btn {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .console-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .console-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(0, 180, 216, 0.08); }
+
+        .console-panel {
+            border-top: 1px solid var(--border);
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+        }
+
+        .console-panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .console-panel-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .console-refresh-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .console-refresh-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+        .console-output {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.6rem 0.75rem;
+            max-height: 260px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.72rem;
+            line-height: 1.45;
+        }
+
+        .console-output .log-line { white-space: pre-wrap; word-break: break-all; color: var(--text-primary); }
+        .console-output .log-line.stderr { color: var(--accent-red); }
+
+        .console-divider {
+            color: var(--accent-red);
+            font-size: 0.66rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0.5rem 0 0.25rem;
+            border-top: 1px dashed rgba(231, 76, 60, 0.4);
+            padding-top: 0.35rem;
+        }
+
+        .console-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+        }
+
         .header-right {
             display: flex;
             align-items: center;
@@ -741,6 +831,9 @@
                             <button class="restart-btn" onclick="restartServer('${escapeHtml(s.name)}', this)">Restart</button>
                         </div>
                     </div>
+                    <div class="card-console-row">
+                        <button class="console-btn" onclick="toggleConsolePanel(this.closest('.server-card'), '${escapeHtml(s.name)}')">Console</button>
+                    </div>
                     <div class="server-card-status">
                         <span class="status-badge ${statusClass}">
                             <span class="status-dot"></span>
@@ -1068,5 +1161,6 @@
     <script src="/js/edit-properties.js"></script>
     <script src="/js/ports-panel.js"></script>
     <script src="/js/restart.js"></script>
+    <script src="/js/console.js"></script>
 </body>
 </html>

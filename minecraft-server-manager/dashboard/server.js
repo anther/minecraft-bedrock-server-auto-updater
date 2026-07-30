@@ -65,6 +65,40 @@ function readRecentLogs(count = 50) {
     }
 }
 
+// Tail the last `count` non-blank lines of a log file. Returns null if the file
+// doesn't exist so callers can distinguish "never captured" from "empty".
+function tailLogFile(filePath, count) {
+    if (!fs.existsSync(filePath)) return null;
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const lines = content.split(/\r?\n/).filter(l => l.trim());
+        let updatedAt = null;
+        try { updatedAt = fs.statSync(filePath).mtime.toISOString(); } catch { /* ignore */ }
+        return {
+            lines: lines.slice(-count),
+            totalLines: lines.length,
+            updatedAt
+        };
+    } catch {
+        return null;
+    }
+}
+
+// Read a server's captured console output. The redirected stdout/stderr files are
+// written by buildRestartScript() when a server is (re)started from the dashboard,
+// so `available` is false for servers that were never launched through it.
+function readServerConsole(serverDir, count = 200) {
+    const logDir = path.join(serverDir, 'console-logs');
+    const stdout = tailLogFile(path.join(logDir, 'latest.log'), count);
+    const stderr = tailLogFile(path.join(logDir, 'latest.err.log'), count);
+    const empty = { lines: [], totalLines: 0, updatedAt: null };
+    return {
+        available: !!(stdout || stderr),
+        stdout: stdout || empty,
+        stderr: stderr || empty
+    };
+}
+
 function getRunningServerPaths() {
     try {
         const psCommand = 'Get-CimInstance Win32_Process -Filter "name=\'bedrock_server.exe\'" | ForEach-Object { $_.ExecutablePath } | Where-Object { $_ }';
@@ -569,6 +603,12 @@ async function handleRequest(req, res) {
                         }
                         sendJson(res, { message: 'Server restarting' });
                         broadcastUpdate();
+                        break;
+                    }
+
+                    if (action === 'console' && req.method === 'GET') {
+                        const count = Math.min(parseInt(url.searchParams.get('lines'), 10) || 200, 1000);
+                        sendJson(res, readServerConsole(serverDir, count));
                         break;
                     }
 
