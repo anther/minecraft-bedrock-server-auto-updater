@@ -7,6 +7,7 @@ const { WebSocketServer } = require('ws');
 const { parseServerProperties, writeServerProperties } = require('./lib/server-properties');
 const { validatePropertyUpdates } = require('./lib/validation');
 const { readPropertyHistory, appendPropertyHistory, revertPropertyChange, redoPropertyChange } = require('./lib/property-history');
+const { REQUIRED_SERVER_FILES, findPortConflicts, swapServerPorts } = require('./lib/ports');
 
 const PORT = parseInt(process.env.DASHBOARD_PORT, 10) || 19100;
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -14,7 +15,6 @@ const CONFIG_PATH = path.join(PROJECT_ROOT, 'configuration.json');
 const LOG_DIR = path.join(PROJECT_ROOT, 'logs');
 const SCRIPT_LOG = path.join(LOG_DIR, 'MinecraftScriptLog.log');
 const UPDATE_HISTORY = path.join(LOG_DIR, 'MinecraftUpdateHistory.json');
-const REQUIRED_SERVER_FILES = ['bedrock_server.exe', 'server.properties', 'permissions.json', 'allowlist.json'];
 
 const MIME_TYPES = {
     '.js': 'application/javascript',
@@ -365,6 +365,42 @@ async function handleRequest(req, res) {
                 sendJson(res, { servers });
                 break;
             }
+            case '/api/ports/swap': {
+                if (req.method !== 'POST') {
+                    sendJson(res, { error: 'Method not allowed' }, 405);
+                    break;
+                }
+                const { serverA, serverB } = await parseRequestBody(req);
+                if (!serverA || !serverB || serverA === serverB) {
+                    sendJson(res, { error: 'Two different server names required' }, 400);
+                    break;
+                }
+                const dirA = resolveServerDir(serverA);
+                const dirB = resolveServerDir(serverB);
+                if (!dirA || !dirB) {
+                    sendJson(res, { error: `Server not found: ${!dirA ? serverA : serverB}` }, 404);
+                    break;
+                }
+
+                let changesA, changesB;
+                try {
+                    ({ changesA, changesB } = swapServerPorts(dirA, dirB));
+                } catch (err) {
+                    sendJson(res, { error: `Swap failed, no changes applied: ${err.message}` }, 500);
+                    break;
+                }
+
+                if (!Object.keys(changesA).length && !Object.keys(changesB).length) {
+                    sendJson(res, { message: 'No changes detected' });
+                    break;
+                }
+
+                if (Object.keys(changesA).length) appendPropertyHistory(dirA, changesA);
+                if (Object.keys(changesB).length) appendPropertyHistory(dirB, changesB);
+                sendJson(res, { message: 'Ports swapped', changes: { [serverA]: changesA, [serverB]: changesB } });
+                broadcastUpdate();
+                break;
+            }
             default: {
                 // Static file serving for /js/* paths
                 if (url.pathname.startsWith('/js/')) {
@@ -404,8 +440,8 @@ async function handleRequest(req, res) {
                     }
 
                     if (action === 'properties' && req.method === 'POST') {
-                        const body = await parseRequestBody(req);
-                        const { valid, errors } = validatePropertyUpdates(body);
+                        const { allowConflict, ...propUpdates } = await parseRequestBody(req);
+                        const { valid, errors } = validatePropertyUpdates(propUpdates);
                         if (!valid) {
                             sendJson(res, { error: 'Validation failed', errors }, 400);
                             break;
@@ -414,8 +450,16 @@ async function handleRequest(req, res) {
                         // Read current values for history
                         const propsPath = path.join(serverDir, 'server.properties');
                         const currentProps = parseServerProperties(propsPath);
+
+                        if (allowConflict !== true) {
+                            const conflicts = findPortConflicts(propUpdates, folderName, currentProps, readConfig().serverRoot);
+                            if (conflicts.length) {
+                                sendJson(res, { error: 'Port conflict', conflicts }, 409);
+                                break;
+                            }
+                        }
                         const changes = {};
-                        for (const [key, newVal] of Object.entries(body)) {
+                        for (const [key, newVal] of Object.entries(propUpdates)) {
                             const oldVal = currentProps[key] || '';
                             if (String(newVal) !== String(oldVal)) {
                                 changes[key] = { old: oldVal, new: String(newVal) };
@@ -429,7 +473,7 @@ async function handleRequest(req, res) {
 
                         // Convert all values to strings for writing
                         const updates = {};
-                        for (const [key, val] of Object.entries(body)) {
+                        for (const [key, val] of Object.entries(propUpdates)) {
                             updates[key] = String(val);
                         }
 

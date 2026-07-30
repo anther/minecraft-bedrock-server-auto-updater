@@ -213,13 +213,13 @@
         /* Update history table */
         .history-section { margin-bottom: 1.5rem; }
 
-        .history-table {
+        .history-table, .ports-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
         }
 
-        .history-table th {
+        .history-table th, .ports-table th {
             text-align: left;
             padding: 0.6rem 0.75rem;
             background: var(--bg-card);
@@ -230,13 +230,67 @@
             letter-spacing: 0.05em;
         }
 
-        .history-table td {
+        .history-table td, .ports-table td {
             padding: 0.5rem 0.75rem;
             border-bottom: 1px solid var(--border);
         }
 
-        .history-table tr:hover td {
+        .history-table tr:hover td, .ports-table tr:hover td {
             background: rgba(15, 52, 96, 0.4);
+        }
+
+        /* Ports overview */
+        .ports-section { margin-bottom: 1.5rem; }
+
+        .ports-table td { vertical-align: middle; }
+
+        .port-cell {
+            color: var(--accent-gold);
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        td.port-conflict, .port-cell.port-conflict { color: var(--accent-red); }
+
+        input.edit-input.port-conflict {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .ports-conflict-banner { margin-bottom: 0.75rem; }
+
+        .ports-actions { text-align: right; white-space: nowrap; }
+        .ports-actions .edit-btn, .ports-actions .swap-btn { margin-left: 0.35rem; }
+
+        .swap-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .swap-btn:hover { border-color: var(--accent-green); color: var(--accent-green); }
+        .swap-btn.swap-active { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+        .swap-source-row td { background: rgba(0, 180, 216, 0.08); }
+        .swap-source-row td:first-child { border-left: 2px solid var(--accent-blue); }
+
+        .port-input { width: 90px; }
+
+        .restart-pending {
+            color: var(--accent-gold);
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }
+
+        .ports-footnote {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
         }
 
         .version-tag {
@@ -509,6 +563,13 @@
             </div>
         </div>
 
+        <div class="ports-section">
+            <h2 class="section-title">Ports</h2>
+            <div id="ports-container">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
+
         <h2 class="section-title">Servers</h2>
         <div class="server-grid" id="server-grid">
             <div class="empty-state">Loading...</div>
@@ -738,6 +799,8 @@
             window._serverData = {};
             servers.forEach(s => { window._serverData[s.name] = s; });
 
+            if (typeof renderPortsPanel === 'function') renderPortsPanel(servers);
+
             if (!servers.length) {
                 grid.innerHTML = '<div class="empty-state">No servers found</div>';
                 return;
@@ -939,5 +1002,6 @@
         document.addEventListener('DOMContentLoaded', connectWebSocket);
     </script>
     <script src="/js/edit-properties.js"></script>
+    <script src="/js/ports-panel.js"></script>
 </body>
 </html>
