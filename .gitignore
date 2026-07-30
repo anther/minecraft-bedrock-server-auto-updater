@@ -3,6 +3,7 @@
 # Server data directories (excluded from version control)
 logs/
 TheServers/
+TheServers-backup/
 Server Backups/
 Server Base Files/
 
