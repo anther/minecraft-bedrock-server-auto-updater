@@ -4,7 +4,23 @@
 let _portsServers = [];
 let _portsEditServer = null;   // server name whose row is in edit mode
 let _portsSwapSource = null;   // server name selected as swap source
-const _portsRestartPending = new Set();
+
+// Restart a running server so a just-saved port takes effect. Non-blocking on
+// failure: the property is already persisted, so we log rather than interrupt.
+async function restartServerForPortChange(serverName) {
+    try {
+        const res = await fetch(`/api/servers/${encodeURIComponent(serverName)}/restart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            console.error(`Auto-restart of ${serverName} failed:`, data.error || res.status);
+        }
+    } catch (err) {
+        console.error(`Auto-restart of ${serverName} failed:`, err.message);
+    }
+}
 
 function computePortConflicts(servers) {
     const owners = new Map();
@@ -23,9 +39,6 @@ function computePortConflicts(servers) {
 
 function renderPortsPanel(servers) {
     _portsServers = [...servers].sort((a, b) => a.serverPort - b.serverPort || a.name.localeCompare(b.name));
-    for (const s of _portsServers) {
-        if (_portsRestartPending.has(s.name) && !s.isRunning) _portsRestartPending.delete(s.name);
-    }
     if (_portsEditServer) return; // don't clobber an open edit form
     rebuildPortsTable();
 }
@@ -59,13 +72,12 @@ function rebuildPortsTable() {
             </thead>
             <tbody>${rows}</tbody>
         </table>
-        <div class="ports-footnote">Port changes to running servers take effect after restart.</div>`;
+        <div class="ports-footnote">Port changes to running servers are applied by restarting them automatically.</div>`;
 }
 
 function buildPortsRowHtml(s, conflicts) {
     const name = escapeHtml(s.name);
-    const isOnline = !!s.query || s.isRunning;
-    const pendingHtml = _portsRestartPending.has(s.name) ? '<span class="restart-pending">restart to apply</span>' : '';
+    const state = serverStatus(s);
     const v4Conflict = conflicts.has(s.serverPort) ? ' port-conflict' : '';
     const v6Conflict = conflicts.has(s.serverPortV6) ? ' port-conflict' : '';
     const isSource = _portsSwapSource === s.name;
@@ -83,8 +95,8 @@ function buildPortsRowHtml(s, conflicts) {
 
     return `
         <tr class="ports-row${isSource ? ' swap-source-row' : ''}" data-server="${name}">
-            <td>${name}${pendingHtml}</td>
-            <td><span class="status-badge ${isOnline ? 'online' : 'offline'}"><span class="status-dot"></span>${isOnline ? 'Online' : 'Offline'}</span></td>
+            <td>${name}</td>
+            <td><span class="status-badge ${state}"><span class="status-dot"></span>${STATUS_LABELS[state]}</span></td>
             <td class="port-cell${v4Conflict}" data-port="v4">${s.serverPort}</td>
             <td class="port-cell${v6Conflict}" data-port="v6">${s.serverPortV6}</td>
             <td class="ports-actions">${actionsHtml}</td>
@@ -164,10 +176,10 @@ async function savePortEdit(serverName) {
         }
 
         const s = _portsServers.find(x => x.name === serverName);
-        if (s && s.isRunning && data.changes && Object.keys(data.changes).length) {
-            _portsRestartPending.add(serverName);
-        }
         _portsEditServer = null;
+        if (s && s.isRunning && data.changes && Object.keys(data.changes).length) {
+            await restartServerForPortChange(serverName);
+        }
         await refresh();
         rebuildPortsTable();
     } catch (err) {
@@ -195,7 +207,7 @@ async function performSwap(targetName) {
     if (!a || !b) return;
 
     const runningNote = (a.isRunning || b.isRunning)
-        ? '\n\nNote: running server(s) will keep their current port until restarted.'
+        ? '\n\nNote: running server(s) will be restarted to apply the new port.'
         : '';
     const summary = `${a.name}: ${a.serverPort}/${a.serverPortV6}  ⇄  ${b.name}: ${b.serverPort}/${b.serverPortV6}`;
     if (!confirm(`Swap ports?\n\n${summary}${runningNote}`)) return;
@@ -211,9 +223,9 @@ async function performSwap(targetName) {
             alert('Swap failed: ' + data.error);
             return;
         }
-        if (a.isRunning) _portsRestartPending.add(a.name);
-        if (b.isRunning) _portsRestartPending.add(b.name);
         _portsSwapSource = null;
+        if (a.isRunning) await restartServerForPortChange(a.name);
+        if (b.isRunning) await restartServerForPortChange(b.name);
         await refresh();
         rebuildPortsTable();
     } catch (err) {
