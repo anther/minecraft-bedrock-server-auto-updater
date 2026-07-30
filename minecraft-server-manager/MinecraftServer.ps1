@@ -95,6 +95,22 @@ class MinecraftServer
         return $null
     }
 
+    [bool]
+    IsLanVisible()
+    {
+        # Bedrock's enable-lan-visibility must be true for the server to broadcast
+        # its status. When false, the RakNet ping returns no server-info string, so
+        # the dashboard shows it offline and it cannot be joined over LAN.
+        # The property defaults to true when absent, so only an explicit "false" is a problem.
+        # GetProperty is [string]-typed, so an absent key comes back as '' (not $null).
+        $val = $this.GetProperty('enable-lan-visibility')
+        if ([string]::IsNullOrWhiteSpace($val))
+        {
+            return $true
+        }
+        return ($val.Trim().ToLower() -eq 'true')
+    }
+
     [void]
     Start()
     {

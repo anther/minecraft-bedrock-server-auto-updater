@@ -324,6 +324,10 @@ foreach ($server in $serverRoots)
 
 foreach ($server in $serverRoots)
 {
+    if (-not $server.IsLanVisible())
+    {
+        Write-Log "WARNING: $($server.GetName() ) has enable-lan-visibility=false in server.properties. It will start but NOT appear online in the dashboard or be joinable over LAN. Set enable-lan-visibility=true to fix."
+    }
     $server.Start()
 }
 
