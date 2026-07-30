@@ -121,7 +121,25 @@ class MinecraftServer
         if (-not$running)
         {
             Write-Log "Starting server: $($this.GetName() )"
-            Start-Process -FilePath $exe
+
+            # Capture the server's console output to a file so problems can be diagnosed
+            # after the fact. Storage is bounded: we keep only the current run (latest.log)
+            # plus the immediately preceding run (previous.log). Each start rotates the old
+            # latest to previous, so logs never accumulate indefinitely.
+            $logDir = Join-Path $this.Root 'console-logs'
+            if (-not (Test-Path $logDir))
+            {
+                New-Item -ItemType Directory -Path $logDir | Out-Null
+            }
+            $latestOut = Join-Path $logDir 'latest.log'
+            $prevOut = Join-Path $logDir 'previous.log'
+            $latestErr = Join-Path $logDir 'latest.err.log'
+            $prevErr = Join-Path $logDir 'previous.err.log'
+            if (Test-Path $latestOut) { Move-Item -Path $latestOut -Destination $prevOut -Force }
+            if (Test-Path $latestErr) { Move-Item -Path $latestErr -Destination $prevErr -Force }
+
+            Start-Process -FilePath $exe -WorkingDirectory $this.Root -WindowStyle Hidden `
+                -RedirectStandardOutput $latestOut -RedirectStandardError $latestErr
         }
     }
 
