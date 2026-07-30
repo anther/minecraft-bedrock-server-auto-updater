@@ -85,6 +85,56 @@ function isServerRunning(serverDir, runningPaths) {
     return runningPaths.some(p => path.resolve(p).toLowerCase().startsWith(normalized));
 }
 
+// Build a PowerShell script that force-stops any bedrock_server.exe running under
+// `root`, waits for it to exit, rotates the console logs, then relaunches it hidden.
+// This mirrors the Start()/Stop() logic in ../MinecraftServer.ps1 so a restart from
+// the dashboard behaves identically to one driven by the maintenance script.
+function buildRestartScript(root) {
+    // Single-quote escaping: PowerShell literal strings only treat '' specially, so
+    // doubling single quotes makes an arbitrary path injection-safe.
+    const safeRoot = root.replace(/'/g, "''");
+    return `
+$ErrorActionPreference = 'Stop'
+$root = '${safeRoot}'
+$exe = Join-Path $root 'bedrock_server.exe'
+$prefix = $root.ToLower().TrimEnd('\\') + '\\'
+$mine = {
+    Get-CimInstance Win32_Process -Filter "name='bedrock_server.exe'" |
+        Where-Object { $_.ExecutablePath -and $_.ExecutablePath.ToLower().StartsWith($prefix) }
+}
+foreach ($p in & $mine) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
+for ($i = 0; $i -lt 20; $i++) {
+    if (-not (& $mine)) { break }
+    Start-Sleep -Milliseconds 300
+}
+$logDir = Join-Path $root 'console-logs'
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+$latestOut = Join-Path $logDir 'latest.log'
+$prevOut   = Join-Path $logDir 'previous.log'
+$latestErr = Join-Path $logDir 'latest.err.log'
+$prevErr   = Join-Path $logDir 'previous.err.log'
+if (Test-Path $latestOut) { Move-Item -Path $latestOut -Destination $prevOut -Force }
+if (Test-Path $latestErr) { Move-Item -Path $latestErr -Destination $prevErr -Force }
+Start-Process -FilePath $exe -WorkingDirectory $root -WindowStyle Hidden \`
+    -RedirectStandardOutput $latestOut -RedirectStandardError $latestErr
+`;
+}
+
+function restartServerAt(serverDir) {
+    // stdio: 'ignore' is essential, not cosmetic. PowerShell's Start-Process with
+    // -RedirectStandardOutput launches the child with inherited handles, so the new
+    // bedrock_server.exe inherits our stdout/stderr pipes and holds them open for its
+    // whole lifetime. With piped stdio, execFileSync would then block on pipe EOF until
+    // the timeout (falsely reporting failure, and risking killing PowerShell mid-work).
+    // Ignoring stdio leaves no pipes to inherit, so this returns as soon as PowerShell
+    // exits (~1-2s). A non-zero exit still throws, which the caller surfaces.
+    execFileSync('powershell.exe', ['-NoProfile', '-Command', buildRestartScript(serverDir)], {
+        stdio: 'ignore',
+        timeout: 30000,
+        windowsHide: true
+    });
+}
+
 function getDirSizeBytes(dirPath) {
     let total = 0;
     try {
@@ -365,6 +415,32 @@ async function handleRequest(req, res) {
                 sendJson(res, { servers });
                 break;
             }
+            case '/api/restart-all': {
+                if (req.method !== 'POST') {
+                    sendJson(res, { error: 'Method not allowed' }, 405);
+                    break;
+                }
+                const config = readConfig();
+                const servers = discoverServers(config.serverRoot);
+                const results = [];
+                for (const s of servers) {
+                    try {
+                        restartServerAt(s.path);
+                        results.push({ name: s.name, ok: true });
+                    } catch (err) {
+                        results.push({ name: s.name, ok: false, error: err.message });
+                    }
+                }
+                const failed = results.filter(r => !r.ok);
+                sendJson(res, {
+                    message: failed.length
+                        ? `Restarted ${results.length - failed.length}/${results.length} servers`
+                        : `Restarted all ${results.length} servers`,
+                    results
+                }, failed.length ? 207 : 200);
+                broadcastUpdate();
+                break;
+            }
             case '/api/ports/swap': {
                 if (req.method !== 'POST') {
                     sendJson(res, { error: 'Method not allowed' }, 405);
@@ -480,6 +556,18 @@ async function handleRequest(req, res) {
                         writeServerProperties(propsPath, updates);
                         appendPropertyHistory(serverDir, changes);
                         sendJson(res, { message: 'Properties updated', changes });
+                        broadcastUpdate();
+                        break;
+                    }
+
+                    if (action === 'restart' && req.method === 'POST') {
+                        try {
+                            restartServerAt(serverDir);
+                        } catch (err) {
+                            sendJson(res, { error: `Restart failed: ${err.message}` }, 500);
+                            break;
+                        }
+                        sendJson(res, { message: 'Server restarting' });
                         broadcastUpdate();
                         break;
                     }

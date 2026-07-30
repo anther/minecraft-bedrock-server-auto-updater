@@ -131,12 +131,17 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
         }
 
         .server-card-header h3 {
             font-size: 1rem;
             font-weight: 600;
+        }
+
+        .server-card-status {
+            margin-bottom: 0.75rem;
         }
 
         .status-badge {
@@ -161,6 +166,11 @@
             color: var(--accent-red);
         }
 
+        .status-badge.unresponsive {
+            background: rgba(240, 165, 0, 0.15);
+            color: var(--accent-gold);
+        }
+
         .status-dot {
             width: 6px;
             height: 6px;
@@ -169,6 +179,7 @@
 
         .status-badge.online .status-dot { background: var(--accent-green); }
         .status-badge.offline .status-dot { background: var(--accent-red); }
+        .status-badge.unresponsive .status-dot { background: var(--accent-gold); }
 
         .server-detail {
             display: flex;
@@ -281,12 +292,6 @@
 
         .port-input { width: 90px; }
 
-        .restart-pending {
-            color: var(--accent-gold);
-            font-size: 0.7rem;
-            margin-left: 0.5rem;
-        }
-
         .ports-footnote {
             font-size: 0.72rem;
             color: var(--text-secondary);
@@ -370,6 +375,41 @@
 
         .edit-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
         .history-btn:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+
+        .restart-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .restart-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
+        .restart-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .restart-all-btn {
+            background: transparent;
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.4rem 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .restart-all-btn:hover { background: rgba(231, 76, 60, 0.15); }
+        .restart-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .running-warning {
             background: rgba(240, 165, 0, 0.15);
@@ -531,9 +571,12 @@
 <body>
     <header>
         <h1>Minecraft Bedrock Server Dashboard</h1>
-        <div class="header-meta">
-            <div>Version: <span id="header-version">--</span></div>
-            <div>Last refreshed: <span id="header-refresh">--</span></div>
+        <div class="header-right">
+            <button class="restart-all-btn" onclick="restartAllServers(this)">Restart All</button>
+            <div class="header-meta">
+                <div>Version: <span id="header-version">--</span></div>
+                <div>Last refreshed: <span id="header-refresh">--</span></div>
+            </div>
         </div>
     </header>
 
@@ -613,6 +656,23 @@
             return d.innerHTML;
         }
 
+        // Single source of truth for a server's liveness state, shared by the
+        // server cards, the summary counter, and the Ports panel so they can
+        // never disagree. Two backend signals feed it:
+        //   s.isRunning – a bedrock_server.exe process exists for this server
+        //   s.query     – the server answered a RakNet UDP ping (live data)
+        // giving three states:
+        //   'online'       – answered the query (reachable; player/version data live)
+        //   'unresponsive' – process is up but not answering (starting up or stuck)
+        //   'offline'      – no process running
+        function serverStatus(s) {
+            if (s.query) return 'online';
+            if (s.isRunning) return 'unresponsive';
+            return 'offline';
+        }
+
+        const STATUS_LABELS = { online: 'Online', unresponsive: 'Unresponsive', offline: 'Offline' };
+
         function boolBadge(value) {
             const on = String(value).toLowerCase() === 'true';
             return `<span class="bool-badge ${on ? 'is-true' : 'is-false'}">${on ? 'ON' : 'OFF'}</span>`;
@@ -649,7 +709,7 @@
 
         function updateServerSummary(servers) {
             document.getElementById('summary-servers').textContent = servers.length;
-            const onlineCount = servers.filter(s => !!s.query).length;
+            const onlineCount = servers.filter(s => serverStatus(s) === 'online').length;
             const totalPlayers = servers.reduce((sum, s) => sum + (s.query ? s.query.onlinePlayers : 0), 0);
             const el = document.getElementById('summary-online');
             el.textContent = `${onlineCount} / ${servers.length}`;
@@ -661,9 +721,10 @@
 
         function buildServerCardHtml(s) {
             const q = s.query;
-            const isOnline = !!q;
-            const statusClass = isOnline ? 'online' : 'offline';
-            const statusText = isOnline ? 'Online' : 'Offline';
+            const state = serverStatus(s);
+            const isOnline = state === 'online';
+            const statusClass = state;
+            const statusText = STATUS_LABELS[state];
             const players = isOnline ? `${q.onlinePlayers} / ${q.maxPlayers}` : '--';
             const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
 
@@ -677,11 +738,14 @@
                         <div class="card-actions">
                             <button class="edit-btn" onclick="enterEditMode(this.closest('.server-card'), window._serverData['${escapeHtml(s.name)}'])">Edit</button>
                             <button class="history-btn" onclick="toggleHistoryPanel(this.closest('.server-card'), '${escapeHtml(s.name)}')">History</button>
-                            <span class="status-badge ${statusClass}">
-                                <span class="status-dot"></span>
-                                ${statusText}
-                            </span>
+                            <button class="restart-btn" onclick="restartServer('${escapeHtml(s.name)}', this)">Restart</button>
                         </div>
+                    </div>
+                    <div class="server-card-status">
+                        <span class="status-badge ${statusClass}">
+                            <span class="status-dot"></span>
+                            ${statusText}
+                        </span>
                     </div>
                     <div class="server-card-details">
                         <div class="server-detail"><span class="key">Players</span><span data-field="players" style="color:${playersColor};font-weight:600">${players}</span></div>
@@ -709,15 +773,15 @@
             if (card.querySelector('.edit-form')) return;
 
             const q = s.query;
-            const isOnline = !!q;
+            const state = serverStatus(s);
+            const isOnline = state === 'online';
 
             // Update status badge
             const badge = card.querySelector('.status-badge');
             if (badge) {
-                const newClass = isOnline ? 'online' : 'offline';
-                if (!badge.classList.contains(newClass)) {
-                    badge.className = `status-badge ${newClass}`;
-                    badge.innerHTML = `<span class="status-dot"></span>${isOnline ? 'Online' : 'Offline'}`;
+                if (!badge.classList.contains(state)) {
+                    badge.className = `status-badge ${state}`;
+                    badge.innerHTML = `<span class="status-dot"></span>${STATUS_LABELS[state]}`;
                 }
             }
 
@@ -1003,5 +1067,6 @@
     </script>
     <script src="/js/edit-properties.js"></script>
     <script src="/js/ports-panel.js"></script>
+    <script src="/js/restart.js"></script>
 </body>
 </html>
