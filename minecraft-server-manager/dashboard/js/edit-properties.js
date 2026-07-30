@@ -42,8 +42,10 @@ function getFieldValue(field) {
 }
 
 function enterEditMode(card, server) {
-    const isOnline = !!server.query;
-    const warningHtml = isOnline
+    const state = serverStatus(server);
+    // Warn whenever the process is up (online or unresponsive) — that's when a
+    // property change needs a restart to take effect, regardless of query health.
+    const warningHtml = state !== 'offline'
         ? '<div class="running-warning">Server is running. Changes take effect after restart.</div>'
         : '';
 
@@ -59,9 +61,9 @@ function enterEditMode(card, server) {
     card.innerHTML = `
         <div class="server-card-header">
             <h3>${escapeHtml(server.name)}</h3>
-            <span class="status-badge ${isOnline ? 'online' : 'offline'}">
+            <span class="status-badge ${state}">
                 <span class="status-dot"></span>
-                ${isOnline ? 'Online' : 'Offline'}
+                ${STATUS_LABELS[state]}
             </span>
         </div>
         ${warningHtml}
