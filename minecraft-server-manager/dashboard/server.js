@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const dgram = require('dgram');
@@ -266,6 +267,102 @@ function discoverServers(serverRoot) {
     return servers;
 }
 
+// --- Latest Bedrock Version Check ---
+
+// Same endpoint the maintenance updater (../server update.ps1) uses to discover the
+// newest Bedrock dedicated server release. We only READ it here to tell the user an
+// update is pending — applying it is still the updater script's job.
+const DOWNLOAD_LINKS_API = 'https://net-secondary.web.minecraft-services.net/api/v1.0/download/links';
+const LATEST_VERSION_TTL = 30 * 60 * 1000; // cache for 30 min; the release cadence is daily at most
+
+// Last known result, kept across requests. On a failed fetch we retain the last good
+// `version` so a transient network blip doesn't make the "up to date" badge flicker.
+let _latestVersionCache = { version: null, checkedAt: 0, error: null };
+
+// Compare dotted numeric versions ("1.26.42.1"). Returns -1 / 0 / 1 like a comparator.
+// Missing trailing segments are treated as 0 so "1.26.42" < "1.26.42.1".
+function compareVersions(a, b) {
+    const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+    const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+    const len = Math.max(pa.length, pb.length);
+    for (let i = 0; i < len; i++) {
+        const x = pa[i] || 0;
+        const y = pb[i] || 0;
+        if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+}
+
+function fetchLatestBedrockVersion() {
+    return new Promise((resolve) => {
+        const req = https.get(DOWNLOAD_LINKS_API, { timeout: 10000 }, (res) => {
+            if (res.statusCode !== 200) {
+                res.resume();
+                resolve({ version: null, error: `HTTP ${res.statusCode}` });
+                return;
+            }
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    const links = (json.result && json.result.links) || [];
+                    const link = links.find(l => l.downloadType === 'serverBedrockWindows');
+                    const match = link && link.downloadUrl && link.downloadUrl.match(/bedrock-server-([0-9.]+)\.zip/);
+                    if (match) resolve({ version: match[1], error: null });
+                    else resolve({ version: null, error: 'No serverBedrockWindows link in API response' });
+                } catch (err) {
+                    resolve({ version: null, error: `Parse error: ${err.message}` });
+                }
+            });
+        });
+        req.on('timeout', () => { req.destroy(); resolve({ version: null, error: 'Request timed out' }); });
+        req.on('error', (err) => resolve({ version: null, error: err.message }));
+    });
+}
+
+async function getLatestBedrockVersion(force = false) {
+    const now = Date.now();
+    if (!force && _latestVersionCache.version && now - _latestVersionCache.checkedAt < LATEST_VERSION_TTL) {
+        return _latestVersionCache;
+    }
+    const result = await fetchLatestBedrockVersion();
+    if (result.version) {
+        _latestVersionCache = { version: result.version, checkedAt: now, error: null };
+    } else {
+        // Preserve the last known good version, but record the failure and timestamp.
+        _latestVersionCache = { version: _latestVersionCache.version, checkedAt: now, error: result.error };
+    }
+    return _latestVersionCache;
+}
+
+// Compute the "update pending" picture and annotate each server with its own status.
+// `target` is the newest version we know about — the live API result when available,
+// otherwise the version the updater last downloaded (config). Servers behind it are
+// flagged individually so the UI can badge them.
+function buildUpdateStatus(latestResult, config, servers) {
+    const latest = latestResult.version;
+    const current = config.currentMinecraftVersion;
+    const hasCurrent = current && current !== 'Unknown';
+    const target = latest || (hasCurrent ? current : null);
+
+    for (const s of servers) {
+        const behind = target && s.version && s.version !== 'Unknown' && compareVersions(s.version, target) < 0;
+        s.updateAvailable = !!behind;
+        s.latestVersion = target;
+    }
+
+    return {
+        latestVersion: latest,
+        currentVersion: hasCurrent ? current : null,
+        // An update is pending when the configured version is behind what Minecraft offers.
+        updateAvailable: !!(latest && hasCurrent && compareVersions(current, latest) < 0),
+        serversBehind: servers.filter(s => s.updateAvailable).map(s => s.name),
+        checkedAt: latestResult.checkedAt ? new Date(latestResult.checkedAt).toISOString() : null,
+        error: latestResult.error
+    };
+}
+
 // --- Bedrock Server Query (RakNet UDP Ping) ---
 
 const RAKNET_MAGIC = Buffer.from('00ffff00fefefefefdfdfdfd12345678', 'hex');
@@ -348,13 +445,18 @@ async function queryAllServers(servers) {
 async function gatherAllData() {
     const config = readConfig();
     const servers = discoverServers(config.serverRoot);
-    const queryMap = await queryAllServers(servers);
+    const [queryMap, latestResult] = await Promise.all([
+        queryAllServers(servers),
+        getLatestBedrockVersion()
+    ]);
     for (const s of servers) s.query = queryMap[s.name] || null;
+    const update = buildUpdateStatus(latestResult, config, servers);
     return {
         config: { currentMinecraftVersion: config.currentMinecraftVersion },
         servers: { servers },
         history: readUpdateHistory(),
-        logs: readRecentLogs(50)
+        logs: readRecentLogs(50),
+        update
     };
 }
 
@@ -442,11 +544,24 @@ async function handleRequest(req, res) {
             case '/api/servers': {
                 const config = readConfig();
                 const servers = discoverServers(config.serverRoot);
-                const queryMap = await queryAllServers(servers);
+                const [queryMap, latestResult] = await Promise.all([
+                    queryAllServers(servers),
+                    getLatestBedrockVersion()
+                ]);
                 for (const s of servers) {
                     s.query = queryMap[s.name] || null;
                 }
-                sendJson(res, { servers });
+                const update = buildUpdateStatus(latestResult, config, servers);
+                sendJson(res, { servers, update });
+                break;
+            }
+            case '/api/update': {
+                // ?force=1 bypasses the 30-min cache to check Minecraft's API right now.
+                const force = url.searchParams.get('force') === '1';
+                const config = readConfig();
+                const servers = discoverServers(config.serverRoot);
+                const latestResult = await getLatestBedrockVersion(force);
+                sendJson(res, buildUpdateStatus(latestResult, config, servers));
                 break;
             }
             case '/api/restart-all': {

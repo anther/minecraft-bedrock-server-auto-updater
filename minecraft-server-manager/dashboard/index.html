@@ -511,6 +511,51 @@
             font-size: 0.78rem;
         }
 
+        /* Update-pending banner + badges */
+        .update-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: rgba(240, 165, 0, 0.12);
+            border: 1px solid var(--accent-gold);
+            border-radius: 8px;
+            padding: 0.7rem 1rem;
+            margin-bottom: 1rem;
+            color: var(--accent-gold);
+            font-size: 0.85rem;
+        }
+
+        .update-banner .up-arrow { font-size: 1.1rem; line-height: 1; }
+        .update-banner strong { color: var(--accent-gold); font-family: 'Consolas', 'Courier New', monospace; }
+        .update-banner .update-hint { color: var(--text-secondary); }
+
+        .update-error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .update-pill {
+            display: inline-block;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.1rem 0.4rem;
+            margin-left: 0.4rem;
+            border-radius: 999px;
+            background: rgba(240, 165, 0, 0.18);
+            color: var(--accent-gold);
+            vertical-align: middle;
+        }
+
+        .value.up-to-date { color: var(--accent-green); }
+        .value.update-pending { color: var(--accent-gold); }
+
         .edit-form { display: flex; flex-direction: column; gap: 0.35rem; }
 
         .edit-row {
@@ -672,11 +717,16 @@
 
     <main>
         <div id="error-container"></div>
+        <div id="update-container"></div>
 
         <div class="summary" id="summary-section">
             <div class="summary-card">
                 <div class="label">Current Version</div>
                 <div class="value" id="summary-version">--</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Latest Available</div>
+                <div class="value small" id="summary-latest">--</div>
             </div>
             <div class="summary-card">
                 <div class="label">Servers</div>
@@ -779,6 +829,76 @@
             document.getElementById('header-version').textContent = config.currentMinecraftVersion;
         }
 
+        // Renders the "update pending" banner + the Latest Available summary card from
+        // the backend's version check (config version vs Minecraft's newest release).
+        function renderUpdate(update) {
+            const banner = document.getElementById('update-container');
+            const latestEl = document.getElementById('summary-latest');
+            const versionEl = document.getElementById('summary-version');
+
+            if (!update) {
+                banner.innerHTML = '';
+                if (latestEl) latestEl.textContent = '--';
+                return;
+            }
+
+            // Latest Available summary card
+            if (latestEl) {
+                if (update.latestVersion) {
+                    latestEl.textContent = update.latestVersion;
+                    latestEl.className = 'value small ' + (update.updateAvailable ? 'update-pending' : 'up-to-date');
+                } else {
+                    latestEl.textContent = 'Unknown';
+                    latestEl.className = 'value small';
+                }
+            }
+            // Mirror the pending state onto the Current Version card
+            if (versionEl) {
+                versionEl.className = 'value' + (update.updateAvailable ? ' update-pending' : '');
+            }
+
+            // Banner priority: a newer release than we've downloaded > servers lagging the
+            // downloaded version > a soft note if the check itself failed > nothing.
+            const behind = update.serversBehind || [];
+            if (update.updateAvailable) {
+                banner.innerHTML = `
+                    <div class="update-banner">
+                        <span class="up-arrow">⬆</span>
+                        <span>
+                            Bedrock <strong>${escapeHtml(update.latestVersion)}</strong> is available
+                            (current: <strong>${escapeHtml(update.currentVersion || '--')}</strong>).
+                            <span class="update-hint">Run the updater (server update.ps1) to download &amp; apply it.</span>
+                        </span>
+                    </div>`;
+            } else if (behind.length) {
+                const label = behind.length === 1
+                    ? `Server <strong>${escapeHtml(behind[0])}</strong> is`
+                    : `<strong>${behind.length}</strong> servers are`;
+                banner.innerHTML = `
+                    <div class="update-banner">
+                        <span class="up-arrow">⬆</span>
+                        <span>
+                            ${label} behind version <strong>${escapeHtml(update.latestVersion || '')}</strong>.
+                            <span class="update-hint">Run the updater (server update.ps1) to apply it${behind.length === 1 ? '' : ' to them'}.</span>
+                        </span>
+                    </div>`;
+            } else if (!update.latestVersion && update.error) {
+                banner.innerHTML = `
+                    <div class="update-error">
+                        Couldn't check Minecraft for the latest version: ${escapeHtml(update.error)}
+                    </div>`;
+            } else {
+                banner.innerHTML = '';
+            }
+        }
+
+        // Small "update" pill shown next to a server's installed version when it's
+        // behind the newest release the dashboard knows about.
+        function updatePill(s) {
+            if (!s.updateAvailable || !s.latestVersion) return '';
+            return `<span class="update-pill" title="Update to ${escapeHtml(s.latestVersion)} available">↑ ${escapeHtml(s.latestVersion)}</span>`;
+        }
+
         function formatRelativeTime(isoString) {
             if (!isoString) return '--';
             const diff = Date.now() - new Date(isoString).getTime();
@@ -842,7 +962,7 @@
                     </div>
                     <div class="server-card-details">
                         <div class="server-detail"><span class="key">Players</span><span data-field="players" style="color:${playersColor};font-weight:600">${players}</span></div>
-                        <div class="server-detail"><span class="key">Version</span><span data-field="version" class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span></div>
+                        <div class="server-detail"><span class="key">Version</span><span><span data-field="version" class="version-tag">${escapeHtml(isOnline ? q.version : s.version)}</span><span data-field="update-badge">${updatePill(s)}</span></span></div>
                         <div class="server-detail"><span class="key">Gamemode</span><span data-field="gamemode">${enumBadge(isOnline ? q.gamemode : s.gamemode)}</span></div>
                         <div class="server-detail"><span class="key">Difficulty</span><span data-field="difficulty">${enumBadge(s.difficulty)}</span></div>
                         <div class="server-detail"><span class="key">Allow Cheats</span><span data-field="allow-cheats">${boolBadge(s.allowCheats)}</span></div>
@@ -897,6 +1017,7 @@
             const playersColor = isOnline && q.onlinePlayers > 0 ? 'var(--accent-green)' : '';
             setField('players', players, { color: playersColor, fontWeight: '600' });
             setField('version', isOnline ? q.version : s.version);
+            setBadgeField('update-badge', updatePill(s));
             setBadgeField('gamemode', enumBadge(isOnline ? q.gamemode : s.gamemode));
             setBadgeField('difficulty', enumBadge(s.difficulty));
             setBadgeField('allow-cheats', boolBadge(s.allowCheats));
@@ -1083,6 +1204,7 @@
                         case 'init':
                             clearError();
                             renderConfig(msg.config);
+                            renderUpdate(msg.update);
                             renderServers(msg.servers, true);
                             renderHistory(msg.history);
                             renderLogs(msg.logs, true);
@@ -1098,6 +1220,7 @@
                             const forceRender = !!window._forceRender;
                             window._forceRender = false;
                             renderConfig(msg.config);
+                            renderUpdate(msg.update);
                             renderServers(msg.servers, forceRender);
                             renderHistory(msg.history);
                             renderLogs(msg.logs, forceRender);
