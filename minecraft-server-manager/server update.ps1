@@ -158,7 +158,8 @@ function Get-ServerZip
             if ($latestVersion -ne $version) {
                 Write-Log "Newer version detected: $latestVersion (was $version). Updating configuration.json..."
 
-                $newJson = @{ currentMinecraftVersion = $latestVersion } | ConvertTo-Json -Depth 2
+                $config.currentMinecraftVersion = $latestVersion
+                $newJson = $config | ConvertTo-Json -Depth 2
                 Set-Content -Path $configPath -Value $newJson -Encoding UTF8
 
                 $version = $latestVersion
